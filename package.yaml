@@ -15,8 +15,24 @@ dependencies:
   - base >= 4.7 && < 5
   - apecs
   - sdl2
+  - text
 
 executables:
   perfect-flow:
     source-dirs:      src
     main:             Main.hs
+
+default-extensions: &extensions
+  - LambdaCase
+  - PatternSynonyms
+  - GeneralizedNewtypeDeriving
+  - DeriveFunctor
+  - DeriveFoldable
+  - DeriveTraversable
+  - ScopedTypeVariables
+  - GADTs
+  - TypeFamilies
+  - RankNTypes
+  - ViewPatterns
+  - TypeApplications
+  - MultiParamTypeClasses
