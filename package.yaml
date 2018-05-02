@@ -1,0 +1,21 @@
+name:                perfect-flow
+version:             0.1.0.0
+#synopsis:
+#description:
+homepage:            https://github.com/Solonarv/perfect-flow#readme
+license:             MIT
+author:              Solonarv
+maintainer:          nstamm@gmx.de
+copyright:           2018 Solonarv
+category:            Web
+extra-source-files:
+- README.md
+
+dependencies:
+  - base >= 4.7 && < 5
+  - apecs
+
+executables:
+  perfect-flow:
+    source-dirs:      src
+    main:             Main.hs
