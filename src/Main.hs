@@ -4,9 +4,7 @@ module Main where
 import Control.Concurrent (threadDelay)
 import Control.Monad
 import Data.Foldable
-import Data.Functor
 import Data.IORef
-import Data.Maybe
 import Data.Monoid
 import Data.Traversable
 import System.IO (stdout, hFlush)
@@ -14,9 +12,7 @@ import System.IO (stdout, hFlush)
 import Apecs
 import qualified Apecs.Slice as Slice
 import SDL hiding (get)
-import qualified SDL
 
-import Data.Text (Text)
 import qualified Data.Text.IO as Text
 
 import World
@@ -73,7 +69,7 @@ tryStartCasting spellName = do
   for_ (Slice.toList named) $ \toCast -> do
     alreadyCasting <- exists @_ @Casting (cast toCast)
     when (not alreadyCasting) $ do
-      (_, Castable cost time, ResAmount energy) <- getUnsafe toCast -- safe, see NOTE
+      (_, Castable cost _time, ResAmount energy) <- getUnsafe toCast -- safe, see NOTE
       when (cost <= energy) $ do
         modify (cast toCast) (ResAmount . subtract cost . getResAmount)
         set toCast (Casting 0)
@@ -95,12 +91,13 @@ render r = do
       cimapM_ $ \(res, (ResAmount amt, ResBounds lo hi)) -> do
         ix <- liftIO $ readIORef countRef <* modifyIORef' countRef (+1)
         let topleft = P (V2 10 (10 + ix * 50))
+        -- TODO render name of resource
         -- Name nm <- fromMaybe (Name "") . getSafe <$> get (cast res @Name)
         liftIO $ renderBar (Rectangle topleft (V2 300 50)) $ (amt - lo) / (hi - lo)
     renderCasting = do
-      cmapM_ $ \(Castable _ time, Casting progress) -> do
-        liftIO $ renderBar (Rectangle (P (V2 300 400)) (V2 300 50)) (progress / time)
-    renderBar bbox@(Rectangle pt bounds@(V2 w h)) progress = do
+      cmapM_ $ \(Castable _ casttime, Casting progress) -> do
+        liftIO $ renderBar (Rectangle (P (V2 300 400)) (V2 300 50)) (progress / casttime)
+    renderBar bbox@(Rectangle pt (V2 w h)) progress = do
       rendererDrawColor r $= V4 0 0 0 0
       drawRect r (Just bbox)
       rendererDrawColor r $= V4 130 0 0 20
@@ -124,7 +121,7 @@ tick dT = do
     regenResources = rmap $ \(ResAmount amt, ResRegen reg) -> ResAmount (amt + reg * dT)
     clampResources = rmap $ \(ResAmount amt, ResBounds lo hi) -> ResAmount (clamp lo hi amt)
     advanceCasting = cmap $ \(Casting progress) -> Casting (progress + dT)
-    resolveCasting = cimapM_ $ \(e, (Casting progress, Castable cost casttime)) ->
+    resolveCasting = cimapM_ $ \(e, (Casting progress, Castable _cost casttime)) ->
       when (progress >= casttime) $ do
         destroy $ cast e @Casting
         get (cast e @Name) >>= liftIO . \case
