@@ -68,7 +68,7 @@ tryStartCasting spellName = do
   named <- owners @(Name, Castable, ResAmount) >>= Slice.filterM (fmap (==spellName) . getUnsafe . cast)
   for_ (Slice.toList named) $ \toCast -> do
     alreadyCasting <- exists @_ @Casting (cast toCast)
-    when (not alreadyCasting) $ do
+    unless alreadyCasting $ do
       (_, Castable cost _time, ResAmount energy) <- getUnsafe toCast -- safe, see NOTE
       when (cost <= energy) $ do
         modify (cast toCast) (ResAmount . subtract cost . getResAmount)
@@ -94,8 +94,8 @@ render r = do
         -- TODO render name of resource
         -- Name nm <- fromMaybe (Name "") . getSafe <$> get (cast res @Name)
         liftIO $ renderBar (Rectangle topleft (V2 300 50)) $ (amt - lo) / (hi - lo)
-    renderCasting = do
-      cmapM_ $ \(Castable _ casttime, Casting progress) -> do
+    renderCasting =
+      cmapM_ $ \(Castable _ casttime, Casting progress) -> 
         liftIO $ renderBar (Rectangle (P (V2 300 400)) (V2 300 50)) (progress / casttime)
     renderBar bbox@(Rectangle pt (V2 w h)) progress = do
       rendererDrawColor r $= V4 0 0 0 0

@@ -23,7 +23,7 @@ instance Component Castable where type Storage Castable = Map Castable
 newtype Casting = Casting { castingProgress :: Double } deriving Show
 instance Component Casting where type Storage Casting = Unique Casting
 
-data Damage = Damage { getDamage :: Double } deriving Show
+newtype Damage = Damage { getDamage :: Double } deriving Show
 instance Component Damage where type Storage Damage = Map Damage
 
 newtype Name = Name { getName :: Text } deriving (Show, Eq)
