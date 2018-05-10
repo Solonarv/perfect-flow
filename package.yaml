@@ -15,6 +15,8 @@ dependencies:
   - base >= 4.7 && < 5
   - apecs
   - sdl2
+  - sdl2-ttf
+  - sdl2-gfx
   - text
 
 executables:
