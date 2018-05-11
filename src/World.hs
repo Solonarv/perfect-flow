@@ -17,7 +17,12 @@ instance Component ResBounds where type Storage ResBounds = Map ResBounds
 newtype ResRegen = ResRegen { getResRegen :: Double } deriving Show
 instance Component ResRegen where type Storage ResRegen = Map ResRegen
 
-data Castable = Castable { castCost :: Double, castTime :: Double } deriving Show
+data ResRenderType = ResRenderAsBar | ResRenderAsCooldown deriving Show
+instance Component ResRenderType where type Storage ResRenderType = Map ResRenderType
+
+data CastDirection = ChanneledCast | NormalCast deriving Show
+
+data Castable = Castable { castCost :: Double, castTime :: Double, castDirection :: CastDirection } deriving Show
 instance Component Castable where type Storage Castable = Map Castable
 
 newtype Casting = Casting { castingProgress :: Double } deriving Show
@@ -38,6 +43,7 @@ instance Component Time where type Storage Time = Global Time
 makeWorld "World" [ ''ResAmount
                   , ''ResBounds
                   , ''ResRegen
+                  , ''ResRenderType
                   , ''Castable
                   , ''Casting
                   , ''Name

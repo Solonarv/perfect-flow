@@ -7,7 +7,7 @@ license:             MIT
 author:              Solonarv
 maintainer:          nstamm@gmx.de
 copyright:           2018 Solonarv
-category:            Web
+category:            Game
 extra-source-files:
 - README.md
 
@@ -16,7 +16,6 @@ dependencies:
   - apecs
   - sdl2
   - sdl2-ttf
-  - sdl2-gfx
   - text
 
 executables:

@@ -1,10 +1,12 @@
 {-# language OverloadedStrings #-}
 module Main where
 
+import Control.Arrow ((&&&))
 import Control.Concurrent (threadDelay)
 import Control.Monad
 import Data.Foldable
 import Data.IORef
+import Data.Maybe
 import Data.Monoid
 import Data.Traversable
 import System.IO (stdout, hFlush)
@@ -12,6 +14,7 @@ import System.IO (stdout, hFlush)
 import Apecs
 import qualified Apecs.Slice as Slice
 import SDL hiding (get)
+import qualified SDL.Font as Font
 
 import qualified Data.Text.IO as Text
 
@@ -19,16 +22,19 @@ import World
 
 main :: IO ()
 main = do
+  putStrLn "startup"
   initializeAll
+  Font.initialize
+  arial12 <- Font.load "c:\\windows\\fonts\\Arial.ttf" 12
   world <- initWorld
   window <- createWindow "Perfect Flow" defaultWindow
   renderer <- createRenderer window (-1) defaultRenderer
   runSystem initializeEntities world
-  runWith world $ mainLoop renderer
+  runWith world $ mainLoop renderer arial12
   runWith world $ getGlobal >>= liftIO . putStrLn . ("Total damage dealt: "++) . show . getSum . getDamageDealt
 
-mainLoop :: Renderer -> System' ()
-mainLoop renderer = do
+mainLoop :: Renderer -> Font.Font -> System' ()
+mainLoop renderer font = do
   events <- liftIO pollEvents
   shouldExit <- for (eventPayload <$> events) $ \case
     KeyboardEvent kbEvt ->
@@ -47,10 +53,10 @@ mainLoop renderer = do
     then liftIO $ hFlush stdout
     else do
       tick 1
-      render renderer
+      render renderer font
       liftIO $ hFlush stdout
       fixFrameTime (1/30)
-      mainLoop renderer
+      mainLoop renderer font
 
 fixFrameTime :: Double -> System' ()
 fixFrameTime desiredFrameTime = do
@@ -69,13 +75,13 @@ tryStartCasting spellName = do
   for_ (Slice.toList named) $ \toCast -> do
     alreadyCasting <- exists @_ @Casting (cast toCast)
     unless alreadyCasting $ do
-      (_, Castable cost _time, ResAmount energy) <- getUnsafe toCast -- safe, see NOTE
+      (_, Castable cost _time _dir, ResAmount energy) <- getUnsafe toCast -- safe, see NOTE
       when (cost <= energy) $ do
         modify (cast toCast) (ResAmount . subtract cost . getResAmount)
         set toCast (Casting 0)
 
-render :: Renderer -> System' ()
-render r = do
+render :: Renderer -> Font.Font -> System' ()
+render r font = do
   clear r
   renderBackdrop
   renderResources
@@ -90,13 +96,23 @@ render r = do
       countRef <- liftIO $ newIORef 0
       cimapM_ $ \(res, (ResAmount amt, ResBounds lo hi)) -> do
         ix <- liftIO $ readIORef countRef <* modifyIORef' countRef (+1)
-        let topleft = P (V2 10 (10 + ix * 50))
+        let y = 10 + ix * 50
+            topleft = P (V2 10 y)
         -- TODO render name of resource
-        -- Name nm <- fromMaybe (Name "") . getSafe <$> get (cast res @Name)
+        getSafe <$> get (cast res @Name) >>= \case
+          Nothing -> pure ()
+          Just (Name nm) -> do
+            tex <- Font.solid font (V4 0 0 0 0) nm >>= createTextureFromSurface r
+            texSize <- uncurry V2 . (textureWidth &&& textureHeight) <$> queryTexture tex
+            copy r tex Nothing (Just $ Rectangle (P (V2 320 y)) texSize)
         liftIO $ renderBar (Rectangle topleft (V2 300 50)) $ (amt - lo) / (hi - lo)
     renderCasting =
-      cmapM_ $ \(Castable _ casttime, Casting progress) -> 
-        liftIO $ renderBar (Rectangle (P (V2 300 400)) (V2 300 50)) (progress / casttime)
+      cmapM_ $ \(Castable _ casttime direction, Casting progress) -> do
+        let progressRaw = progress / casttime
+            barFillLevel = case direction of
+              NormalCast -> progressRaw
+              ChanneledCast -> 1 - progressRaw
+        liftIO $ renderBar (Rectangle (P (V2 300 400)) (V2 300 50)) barFillLevel
     renderBar bbox@(Rectangle pt (V2 w h)) progress = do
       rendererDrawColor r $= V4 0 0 0 0
       drawRect r (Just bbox)
@@ -108,7 +124,7 @@ render r = do
 initializeEntities :: System' ()
 initializeEntities = do
   setGlobal (DamageDealt 0)
-  newEntity (Name "Strike", ResAmount 100, ResBounds 0 100, ResRegen 1, Castable 100 30, Damage 100)
+  newEntity (Name "Strike", (ResAmount 100, ResBounds 0 100, ResRegen 1, ResRenderAsBar), Castable 100 30 NormalCast, Damage 100)
   pure ()
 
 tick :: Double -> System' ()
@@ -121,7 +137,7 @@ tick dT = do
     regenResources = rmap $ \(ResAmount amt, ResRegen reg) -> ResAmount (amt + reg * dT)
     clampResources = rmap $ \(ResAmount amt, ResBounds lo hi) -> ResAmount (clamp lo hi amt)
     advanceCasting = cmap $ \(Casting progress) -> Casting (progress + dT)
-    resolveCasting = cimapM_ $ \(e, (Casting progress, Castable _cost casttime)) ->
+    resolveCasting = cimapM_ $ \(e, (Casting progress, Castable _cost casttime _direction)) ->
       when (progress >= casttime) $ do
         destroy $ cast e @Casting
         get (cast e @Name) >>= liftIO . \case
