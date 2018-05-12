@@ -1,14 +1,17 @@
 {-# language OverloadedStrings #-}
+{-# language OverloadedLists #-}
 module Main where
 
 import Control.Arrow ((&&&))
 import Control.Concurrent (threadDelay)
 import Control.Monad
+import Data.Bifunctor
 import Data.Foldable
 import Data.IORef
 import Data.Maybe
 import Data.Monoid
 import Data.Traversable
+import System.Environment
 import System.IO (stdout, hFlush)
 
 import Apecs
@@ -18,6 +21,8 @@ import qualified SDL.Font as Font
 
 import qualified Data.Text.IO as Text
 
+import Game.Engine.EntityIndex
+import Game.Flow.LevelParser
 import World
 
 main :: IO ()
@@ -44,7 +49,7 @@ mainLoop renderer font = do
           in if key == KeycodeF4
             then pure True
             else False <$ do
-              when (key == KeycodeSpace) $ tryStartCasting $ Name "Strike"
+              when (key == KeycodeSpace) $ tryStartCasting $ Name "strike"
         else pure False
     WindowClosedEvent _ -> pure True
     QuitEvent -> pure True
@@ -71,14 +76,33 @@ fixFrameTime desiredFrameTime = do
 -- as noted in their type. The one use of @getUnsafe . cast@ is safe because the @cast@ is a down-cast.
 tryStartCasting :: Name -> System' ()
 tryStartCasting spellName = do
-  named <- owners @(Name, Castable, ResAmount) >>= Slice.filterM (fmap (==spellName) . getUnsafe . cast)
-  for_ (Slice.toList named) $ \toCast -> do
+  named <- lookupEntity spellName
+  for_ named $ \toCast -> do
     alreadyCasting <- exists @_ @Casting (cast toCast)
     unless alreadyCasting $ do
-      (_, Castable cost _time _dir, ResAmount energy) <- getUnsafe toCast -- safe, see NOTE
-      when (cost <= energy) $ do
-        modify (cast toCast) (ResAmount . subtract cost . getResAmount)
+      (Castable _time cost _dir) <- getUnsafe (cast toCast @Castable) -- safe, see NOTE
+      (spendCosts, canSpend) <- fmap (foldr (\(act0, can0) (act1, can1) -> (act0 >> act1, can0 && can1)) (pure (), True))  . for cost $ \case
+        (Self, amount) -> do
+          toSpend <- resolveResourceCost (cast toCast) amount
+          current <- maybe 0 getResAmount . getSafe <$> get (cast toCast @ResAmount)
+          pure (modify (cast toCast) (ResAmount . subtract toSpend . getResAmount), toSpend <= current)
+        (Other ref, amount) -> do
+          targetResource <- lookupEntity (Name ref)
+          case targetResource of
+            Nothing -> pure (pure (), False)
+            Just res -> do
+              toSpend <- resolveResourceCost (cast res) amount
+              current <- maybe 0 getResAmount . getSafe <$> get (cast res @ResAmount)
+              pure (modify (cast res) (ResAmount . subtract toSpend . getResAmount), toSpend <= current )
+      when canSpend $ do
+        spendCosts
         set toCast (Casting 0)
+  where
+    resolveResourceCost :: Entity ResBounds -> AmountSpec -> System' Double
+    resolveResourceCost ety = \case
+      Max -> maybe 0 resBoundsMax . getSafe <$> get ety
+      Min -> maybe 0 resBoundsMin . getSafe <$> get ety
+      Fixed x -> pure x
 
 render :: Renderer -> Font.Font -> System' ()
 render r font = do
@@ -107,7 +131,7 @@ render r font = do
             copy r tex Nothing (Just $ Rectangle (P (V2 320 y)) texSize)
         liftIO $ renderBar (Rectangle topleft (V2 300 50)) $ (amt - lo) / (hi - lo)
     renderCasting =
-      cmapM_ $ \(Castable _ casttime direction, Casting progress) -> do
+      cmapM_ $ \(Castable casttime _cost direction, Casting progress) -> do
         let progressRaw = progress / casttime
             barFillLevel = case direction of
               NormalCast -> progressRaw
@@ -124,7 +148,9 @@ render r font = do
 initializeEntities :: System' ()
 initializeEntities = do
   setGlobal (DamageDealt 0)
-  newEntity (Name "Strike", (ResAmount 100, ResBounds 0 100, ResRegen 1, ResRenderAsBar), Castable 100 30 NormalCast, Damage 100)
+  levelPath <- head <$> liftIO getArgs
+  -- newEntity (Name "Strike", (ResAmount 100, ResBounds 0 100, ResRegen 1, ResRenderAsBar), Castable 30 [(Self, Max)] NormalCast, OnCastCompleted [Damage 100])
+  loadLevel levelPath
   pure ()
 
 tick :: Double -> System' ()
@@ -137,17 +163,18 @@ tick dT = do
     regenResources = rmap $ \(ResAmount amt, ResRegen reg) -> ResAmount (amt + reg * dT)
     clampResources = rmap $ \(ResAmount amt, ResBounds lo hi) -> ResAmount (clamp lo hi amt)
     advanceCasting = cmap $ \(Casting progress) -> Casting (progress + dT)
-    resolveCasting = cimapM_ $ \(e, (Casting progress, Castable _cost casttime _direction)) ->
+    resolveCasting = cimapM_ $ \(e, (Casting progress, Castable casttime _cost _direction)) ->
       when (progress >= casttime) $ do
         destroy $ cast e @Casting
         get (cast e @Name) >>= liftIO . \case
           Safe Nothing -> putStrLn "Finished casting"
           Safe (Just (Name n)) -> Text.putStrLn $ "Finished casting " <> n
-        get (cast e @Damage) >>= \case
+        get (cast e @OnCastCompleted) >>= \case
           Safe Nothing -> pure ()
-          Safe (Just (Damage dmg)) -> do
-            liftIO . putStrLn $ "Dealt " ++ show dmg ++ " damage!"
-            modifyGlobal $ mappend $ DamageDealt (Sum dmg)
+          Safe (Just (OnCastCompleted acts)) -> for_ acts $ \case
+            Damage dmg -> do
+              liftIO . putStrLn $ "Dealt " ++ show dmg ++ " damage!"
+              modifyGlobal $ mappend $ DamageDealt (Sum dmg)
 
 
 clamp :: Ord a => a -> a -> a -> a

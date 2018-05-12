@@ -1,10 +1,11 @@
 resources:
   strike:
-    bounds:
-      min: 0
-      max: 100
-    regen: 1
-    start: max
+    # bounds:
+    #   min: 0
+    #   max: 100
+    # regen: 1
+    # start: max
+    cooldown: 100
     castable:
       cost:
         self: max

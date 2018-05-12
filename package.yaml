@@ -17,6 +17,13 @@ dependencies:
   - sdl2
   - sdl2-ttf
   - text
+  - yaml
+  - aeson
+  - scientific
+  - vector
+  - containers
+  - hashable
+  - unordered-containers
 
 executables:
   perfect-flow:
@@ -37,3 +44,4 @@ default-extensions: &extensions
   - ViewPatterns
   - TypeApplications
   - MultiParamTypeClasses
+  - FlexibleContexts
