@@ -1,0 +1,61 @@
+resources:
+  mana:
+    bounds:
+      min: 0
+      max: 1000
+    regen: 5
+  arcane-power:
+    modifier:
+      duration: 150
+      stack-limit: 4
+      effects:
+        - type: modify-cost
+          target-skills: arcane-blast
+          modifier-type: more
+          magnitude: 0.4
+          stacking: true
+        - type: modify-damage
+          target-skills: arcane-blast
+          modifier-type: more
+          magnitude: 0.3
+          stacking: true
+  arcane-blast:
+    castable:
+      cost:
+        - mana: 50
+      time: 45
+      type: normal
+    cast-completion:
+      damage: 100
+      apply-modifier: arcane-power
+  arcane-barrage:
+    bounds:
+      min: 0
+      max: 150
+    regen: 1
+    castable:
+      cost:
+        - arcane-barrage: max
+        - mana: 30
+      time: 0
+      type: normal
+    cast-completion:
+      damage: 120
+      remove-modifier:
+        target: arcane-power
+        stacks: all
+  evocation:
+    bounds:
+      min: 0
+      max: 1350 # 45 seconds
+    regen: 1
+    castable:
+      cost:
+        - evocation: max
+      time: 180
+      type: channel
+    cast-tick:
+      period: 45
+      restore-resource:
+        target: mana
+        amount: 200
