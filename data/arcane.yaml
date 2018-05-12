@@ -4,6 +4,7 @@ resources:
       min: 0
       max: 1000
     regen: 5
+    start: max
   arcane-power:
     modifier:
       duration: 150
@@ -22,28 +23,31 @@ resources:
   arcane-blast:
     castable:
       cost:
-        - mana: 50
+        mana: 50
       time: 45
       type: normal
     cast-completion:
-      damage: 100
-      apply-modifier: arcane-power
+      - damage: 100
+      - apply-modifier:
+          target: arcane-power
+          stacks: 1
   arcane-barrage:
     bounds:
       min: 0
       max: 150
     regen: 1
+    start: max
     castable:
       cost:
-        - arcane-barrage: max
-        - mana: 30
+        arcane-barrage: max
+        mana: 30
       time: 0
       type: normal
     cast-completion:
-      damage: 120
-      remove-modifier:
-        target: arcane-power
-        stacks: all
+      - damage: 120
+      - remove-modifier:
+          target: arcane-power
+          stacks: all
   evocation:
     bounds:
       min: 0

@@ -1,0 +1,14 @@
+resources:
+  strike:
+    bounds:
+      min: 0
+      max: 100
+    regen: 1
+    start: max
+    castable:
+      cost:
+        self: max
+      time: 30
+      type: normal
+    cast-completion:
+      - damage: 100
