@@ -1,4 +1,4 @@
-module Game.Engine.EntityIndex
+module Apecs.EntityIndex
   ( type EntityIndex
   , lookupEntity
   , lookupEntityUnsafe
