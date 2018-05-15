@@ -14,7 +14,7 @@ import Data.Scientific (toRealFloat)
 import Data.Text
 import Data.Vector (Vector)
 
-import Game.Engine.EntityIndex
+import Apecs.EntityIndex
 
 newtype ResAmount = ResAmount { getResAmount :: Double } deriving (Show, Eq)
 instance Component ResAmount where type Storage ResAmount = Map ResAmount
@@ -59,13 +59,14 @@ instance FromJSON Castable where
       , castType = ty
       }
 
-data AmountSpec = Min | Fixed Double | Max deriving (Eq, Show)
+data AmountSpec = Min | Fixed Double | Current | Max deriving (Eq, Show)
 instance FromJSON AmountSpec where
   parseJSON val = case val of
     Number n -> pure . Fixed $ toRealFloat n
     String txt -> case txt of
       "max" -> pure Max
       "min" -> pure Min
+      "all" -> pure Current
     _ -> typeMismatch "number or one of 'max', 'min', 'all'" val
 
 data ResourceTarget = Self | Other Text deriving (Eq, Show)
