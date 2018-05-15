@@ -4,7 +4,6 @@ module Game.Flow.Components where
 
 import Control.Arrow
 import Data.Monoid
-import GHC.Exts (IsList(..))
 
 import Apecs
   
@@ -14,7 +13,6 @@ import qualified Data.HashMap.Strict as HashMap
 import Data.Scientific (toRealFloat)
 import Data.Text
 import Data.Vector (Vector)
-import qualified Data.Vector as Vector
 
 import Game.Engine.EntityIndex
 

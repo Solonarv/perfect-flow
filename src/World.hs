@@ -7,8 +7,6 @@ module World
   , module Game.Flow.Components
   ) where
 
-import Data.Monoid
-
 import Apecs
 
 import Game.Flow.Components

@@ -54,10 +54,16 @@ instance (Eq k, Hashable k) => Store (EntityIndex k) where
   explCimapM_ (EntityIndex _ names) act = liftIO (readIORef names) >>= mapM_ act . IntMap.assocs
   {-# inline explCimapM_ #-}
 
-lookupEntity :: (Has w k, Storage k ~ EntityIndex k, Eq k, Hashable k) => k -> System w (Maybe (Entity k))
+lookupEntity
+  :: (Has w k, Storage k ~ EntityIndex k, Eq k, Hashable k)
+  => k
+  -> System w (Maybe (Entity k))
 lookupEntity k = do
   EntityIndex ixes _ <- getStore
   liftIO $ fmap Entity . HashMap.lookup k <$> readIORef ixes
 
-lookupEntityUnsafe :: (Has w k, Storage k ~ EntityIndex k, Eq k, Hashable k) => k -> System w (Entity k)
-lookupEntityUnsafe =  fmap fromJust . lookupEntity
+lookupEntityUnsafe
+  :: (Has w k, Storage k ~ EntityIndex k, Eq k, Hashable k)
+  => k
+  -> System w (Entity k)
+lookupEntityUnsafe = fmap fromJust . lookupEntity

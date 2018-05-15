@@ -12,10 +12,8 @@ import Data.Void
 import Apecs
 
 import Data.Aeson
-import Data.Aeson.Types
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
-import Data.Scientific (toRealFloat)
 import Data.Text (Text)
 import Data.Vector (Vector)
 import Data.Yaml
@@ -76,40 +74,45 @@ data Level = Level
 instance FromJSON Level where
   parseJSON = withObject "level" $ \o -> Level <$> o .: "resources"
 
-instantiateEntity :: ( Has w EntityCounter
-                     , Has w Name
-                     , Has w ResBounds
-                     , Has w ResRegen
-                     , Has w ResAmount
-                     , Has w Castable
-                     , Has w OnCastCompleted
-                     )
-                  => Text
-                  -> EntityDescription
-                  -> System w (Entity Void)
+instantiateEntity
+  :: ( Has w EntityCounter
+     , Has w Name
+     , Has w ResBounds
+     , Has w ResRegen
+     , Has w ResAmount
+     , Has w Castable
+     , Has w OnCastCompleted
+     )
+  => Text
+  -> EntityDescription
+  -> System w (Entity Void)
 instantiateEntity name desc = do
   ety <- newEntity $ Name name
   for_ (etyResourceSpec desc) $ \resSpec -> do
     set ety $ resSpecBounds resSpec
     for_ (resSpecRegen resSpec) $ set ety
     set ety . ResAmount $ case resSpecStartValue resSpec of
-      Min -> resBoundsMin . resSpecBounds $ resSpec
-      Max -> resBoundsMax . resSpecBounds $ resSpec
+      Min          -> resBoundsMin . resSpecBounds $ resSpec
+      Max          -> resBoundsMax . resSpecBounds $ resSpec
       Fixed amount -> amount
   for_ (etyCastable desc) $ set ety
-  unless (null $ etyCastCompletion desc) $ set ety $ OnCastCompleted $ etyCastCompletion desc
+  unless (null $ etyCastCompletion desc)
+    $ set ety
+    $ OnCastCompleted
+    $ etyCastCompletion desc
   pure (cast ety)
 
-loadLevel :: ( Has w EntityCounter
-             , Has w Name
-             , Has w ResBounds
-             , Has w ResRegen
-             , Has w ResAmount
-             , Has w Castable
-             , Has w OnCastCompleted
-             )
-          => FilePath
-          -> System w ()
+loadLevel
+  :: ( Has w EntityCounter
+     , Has w Name
+     , Has w ResBounds
+     , Has w ResRegen
+     , Has w ResAmount
+     , Has w Castable
+     , Has w OnCastCompleted
+     )
+  => FilePath
+  -> System w ()
 loadLevel path = do
   levelData <- liftIO $ decodeFileEither path >>= either throwIO pure
   for_ (HashMap.toList $ levelEntities levelData) $ uncurry instantiateEntity
