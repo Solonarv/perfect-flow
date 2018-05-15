@@ -13,3 +13,8 @@ resources:
       type: normal
     cast-completion:
       - damage: 100
+default-keymap:
+  - key: q
+    action:
+      type: cast
+      skill: strike
