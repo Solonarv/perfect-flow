@@ -16,7 +16,7 @@ import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
 import Data.Text (Text)
 import Data.Vector (Vector)
-import Data.Yaml
+import Data.Yaml.Include
 
 import Game.Flow.Components
 
