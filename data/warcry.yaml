@@ -1,0 +1,25 @@
+resources:
+  warcry-cooldown:
+    bounds:
+      min: 0
+      max: 60
+    regen: 1
+    start: max
+  enduring-cry:
+    castable:
+      cost:
+        warcry-cooldown: max
+        mana: 21
+      time: 0
+      type: normal
+    cast-completion:
+      # whatever
+  rallying-cry:
+    castable:
+      cost:
+        warcry-cooldown: max
+        mana: 27
+      time: 0
+      type: normal
+    cast-completion:
+      # whatever
