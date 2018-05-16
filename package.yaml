@@ -26,6 +26,7 @@ dependencies:
   - hashable
   - unordered-containers
   - mtl
+  - transformers
 
 executables:
   perfect-flow:
@@ -49,3 +50,4 @@ default-extensions: &extensions
   - FlexibleContexts
   - ConstraintKinds
   - TypeOperators
+  - DataKinds

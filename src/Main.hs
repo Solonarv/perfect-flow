@@ -9,6 +9,7 @@ import Control.Monad
 import Data.Foldable
 import Data.IORef
 import Data.Monoid  
+import Data.Proxy
 import Data.Traversable
 import System.Environment
 import System.IO (hFlush, stdout)
@@ -19,7 +20,7 @@ import qualified SDL.Font as Font
 
 import qualified Data.Text.IO as Text
 
-import Apecs.EntityIndex
+import Game.Engine.Input
 import Game.Flow.LevelParser
 import Game.Flow.Resources
 import World
@@ -33,8 +34,9 @@ main = do
   world    <- initWorld
   window   <- createWindow "Perfect Flow" defaultWindow
   renderer <- createRenderer window (-1) defaultRenderer
-  runSystem initializeEntities world
-  runWith world $ mainLoop renderer arial12
+  level <- getArgs >>= loadLevel . head
+  runWith  world $ performSetup level
+  runWith world $ mainLoop renderer arial12 (levelDefaultKeyMap level <> defaultKeyMap)
   runWith world
     $   getGlobal
     >>= liftIO
@@ -44,17 +46,18 @@ main = do
     .   getSum
     .   getDamageDealt
 
-mainLoop :: Renderer -> Font.Font -> System' ()
-mainLoop renderer font = do
+mainLoop :: Renderer -> Font.Font -> KeyMap -> System' ()
+mainLoop renderer font keymap = do
   events     <- liftIO pollEvents
   shouldExit <- for (eventPayload <$> events) $ \case
     KeyboardEvent kbEvt -> if keyboardEventKeyMotion kbEvt == Pressed
       then
-        let key = keysymKeycode (keyboardEventKeysym kbEvt)
-        in  if key == KeycodeF4
-              then pure True
-              else False <$ do
-                when (key == KeycodeSpace) $ tryStartCasting $ Name "strike"
+        case lookupKeyAction (keyboardEventKeysym kbEvt) keymap of
+          Nothing -> pure False
+          Just act -> case act of
+            ExitGame -> pure True
+            CancelCasting -> False <$ resetStore (Proxy @Casting)
+            Cast spellName -> False <$ tryStartCasting (Name spellName)
       else pure False
     WindowClosedEvent _ -> pure True
     QuitEvent           -> pure True
@@ -66,7 +69,7 @@ mainLoop renderer font = do
       render renderer font
       liftIO $ hFlush stdout
       fixFrameTime (1 / 30)
-      mainLoop renderer font
+      mainLoop renderer font keymap
 
 fixFrameTime :: Double -> System' ()
 fixFrameTime desiredFrameTime = do
@@ -124,13 +127,10 @@ render r font = do
       (pt + pure 1)
       (V2 (round $ (fromIntegral $ w - 2) * progress) (h - 2))
 
-initializeEntities :: System' ()
-initializeEntities = do
+performSetup :: Level -> System' ()
+performSetup level = do
   setGlobal (DamageDealt 0)
-  levelPath <- head <$> liftIO getArgs
-  -- newEntity (Name "Strike", (ResAmount 100, ResBounds 0 100, ResRegen 1, ResRenderAsBar), Castable 30 [(Self, Max)] NormalCast, OnCastCompleted [Damage 100])
-  loadLevel levelPath
-  pure ()
+  instantiateLevel level
 
 tick :: Double -> System' ()
 tick dT = do

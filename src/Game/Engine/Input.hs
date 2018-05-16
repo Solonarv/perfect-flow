@@ -1,8 +1,9 @@
-{-# language OverloadedStrings #-}
+{-# language OverloadedStrings, OverloadedLists #-}
 module Game.Engine.Input where
 
 import Control.Applicative
 import Data.Semigroup
+import GHC.Exts (IsList(..))
 
 import Control.Monad.Reader.Class
 import Data.Map.Strict (Map)
@@ -25,6 +26,9 @@ instance Monoid KeyMap where
   mappend = (<>)
   mempty = KeyMap mempty
 
+defaultKeyMap :: KeyMap
+defaultKeyMap = entryToSingleton (KeyMapEntry KeycodeF4 [Alt] ExitGame) <> entryToSingleton (KeyMapEntry KeycodeSpace [] CancelCasting)
+
 newtype KeyModifierActionMap = KeyModifierActionMap { keyModifierActions :: Map VirtualKeyModifiers InputAction } deriving (Eq, Ord, Show)
 instance Semigroup KeyModifierActionMap where
   KeyModifierActionMap l <> KeyModifierActionMap r = KeyModifierActionMap $ Map.unionWith const l r
@@ -40,6 +44,18 @@ data VirtualModifierKey = Shift | Alt | Ctrl deriving (Eq, Ord, Enum, Bounded, S
 
 activeModifierKeys :: VirtualKeyModifiers -> [VirtualModifierKey]
 activeModifierKeys mods = [Shift | vkmodShift mods] <> [Alt | vkmodAlt mods] <> [Ctrl | vkmodCtrl mods]
+
+keyModifiersFromList :: Foldable f => f VirtualModifierKey -> VirtualKeyModifiers
+keyModifiersFromList v = VirtualKeyModifiers
+  { vkmodShift = Shift `elem` v
+  , vkmodAlt = Alt `elem` v
+  , vkmodCtrl = Ctrl `elem` v
+  }
+
+instance IsList VirtualKeyModifiers where
+  type Item VirtualKeyModifiers = VirtualModifierKey
+  toList = activeModifierKeys
+  fromList = keyModifiersFromList
 
 getActionByModifiers
   :: MonadReader KeyModifierActionMap m
@@ -101,11 +117,7 @@ instance ToJSON VirtualModifierKey where
     Ctrl -> "ctrl"
 
 instance FromJSON VirtualKeyModifiers where
-  parseJSON = withArray "list of modifier keys" $ fmap (\v -> VirtualKeyModifiers
-    { vkmodShift = Shift `elem` v
-    , vkmodAlt = Alt `elem` v
-    , vkmodCtrl = Ctrl `elem` v
-    }) . traverse parseJSON
+  parseJSON = withArray "list of modifier keys" $ fmap keyModifiersFromList . traverse parseJSON
 instance ToJSON VirtualKeyModifiers where
   toJSON = toJSON . activeModifierKeys
 

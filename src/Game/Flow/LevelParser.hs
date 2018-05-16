@@ -11,6 +11,7 @@ import Data.Void
 
 import Apecs
 
+import Control.Monad.IO.Class
 import Data.Aeson
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
@@ -18,6 +19,8 @@ import Data.Text (Text)
 import Data.Vector (Vector)
 import Data.Yaml.Include
 
+import Apecs.Util
+import Game.Engine.Input
 import Game.Flow.Components
 
 data EntityDescription = EntityDescription
@@ -69,20 +72,16 @@ instance FromJSON EntityDescription where
 
 data Level = Level
   { levelEntities :: HashMap Text EntityDescription
+  , levelDefaultKeyMap :: KeyMap
   } deriving (Eq, Show)
 
 instance FromJSON Level where
-  parseJSON = withObject "level" $ \o -> Level <$> o .: "resources"
+  parseJSON = withObject "level" $ \o -> Level <$> o .: "resources" <*> o .:? "default-keymap" .!= mempty
 
 instantiateEntity
-  :: ( Has w EntityCounter
-     , Has w Name
-     , Has w ResBounds
-     , Has w ResRegen
-     , Has w ResAmount
-     , Has w Castable
-     , Has w OnCastCompleted
-     )
+  :: HasAll
+       w
+       '[EntityCounter, Name, ResBounds, ResRegen, ResAmount, Castable, OnCastCompleted]
   => Text
   -> EntityDescription
   -> System w (Entity Void)
@@ -102,17 +101,14 @@ instantiateEntity name desc = do
     $ etyCastCompletion desc
   pure (cast ety)
 
-loadLevel
-  :: ( Has w EntityCounter
-     , Has w Name
-     , Has w ResBounds
-     , Has w ResRegen
-     , Has w ResAmount
-     , Has w Castable
-     , Has w OnCastCompleted
-     )
-  => FilePath
+instantiateLevel
+  :: HasAll
+       w
+       '[EntityCounter, Name, ResBounds, ResRegen, ResAmount, Castable, OnCastCompleted]
+  => Level
   -> System w ()
-loadLevel path = do
-  levelData <- liftIO $ decodeFileEither path >>= either throwIO pure
-  for_ (HashMap.toList $ levelEntities levelData) $ uncurry instantiateEntity
+instantiateLevel level =
+  for_ (HashMap.toList $ levelEntities level) $ uncurry instantiateEntity
+
+loadLevel :: MonadIO m => FilePath -> m Level
+loadLevel path = liftIO $ decodeFileEither path >>= either throwIO pure
