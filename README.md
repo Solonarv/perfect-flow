@@ -7,6 +7,13 @@ At the moment, Perfect Flow can only be built from source.
 
 ### Windows
 
+#### The easy way
+
+Simply download the latest release from the [releases page](https://github.com/Solonarv/perfect-flow/releases), and extract the ZIP into a folder
+of your choosing.
+
+#### The hard way
+
 Download the [SDL2 binaries](https://www.libsdl.org/download-2.0.php) as well as the [SDL2_ttf binaries](https://www.libsdl.org/projects/SDL_ttf/).
 You want the zip file from the runtime binaries / windows section.
 
@@ -25,7 +32,9 @@ Run the following commands:
 
 This will set up the Haskell compiler toolchain (warning: takes a while!), and then compile the project.
 
-To run the game, simply run the following command:
+## How to run the game
+
+After installing the game (see above), simply run the following command:
 
     perfect-flow <level-file>
 
