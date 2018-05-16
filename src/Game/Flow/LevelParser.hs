@@ -73,13 +73,12 @@ instance FromJSON EntityDescription where
         in liftA2 (<|>) resource cooldown
 
 data Level = Level
-  { levelEntities :: HashMap Name EntityDescription
+  { levelEntities :: Vector EntityDescription
   , levelDefaultKeyMap :: KeyMap
   } deriving (Eq, Show)
 
 instance FromJSON Level where
-  parseJSON = withObject "level" $ \o -> Level <$> (toMap <$> o .: "resources") <*> o .:? "default-keymap" .!= mempty
-    where toMap = HashMap.fromList . fmap (\ety -> (etyName ety, ety))
+  parseJSON = withObject "level" $ \o -> Level <$> o .: "resources" <*> o .:? "default-keymap" .!= mempty
 
 instantiateEntity
   :: HasAll
