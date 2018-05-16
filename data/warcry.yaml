@@ -1,11 +1,11 @@
 resources:
-  warcry-cooldown:
+  - name: warcry-cooldown
     bounds:
       min: 0
       max: 60
     regen: 1
     start: max
-  enduring-cry:
+  - name: enduring-cry
     castable:
       cost:
         warcry-cooldown: max
@@ -14,7 +14,7 @@ resources:
       type: normal
     cast-completion:
       # whatever
-  rallying-cry:
+  - name: rallying-cry
     castable:
       cost:
         warcry-cooldown: max

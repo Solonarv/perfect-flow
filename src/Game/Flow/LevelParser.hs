@@ -15,7 +15,6 @@ import Control.Monad.IO.Class
 import Data.Aeson
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
-import Data.Text (Text)
 import Data.Vector (Vector)
 import Data.Yaml.Include
 
@@ -24,7 +23,8 @@ import Game.Engine.Input
 import Game.Flow.Components
 
 data EntityDescription = EntityDescription
-  { etyResourceSpec :: Maybe ResourceSpecification
+  { etyName :: Name 
+  , etyResourceSpec :: Maybe ResourceSpecification
   , etyCastable :: Maybe Castable
   , etyCastCompletion :: Vector Action
   } deriving (Eq, Show)
@@ -40,8 +40,10 @@ instance FromJSON EntityDescription where
     resSpec <- resourceSpecificationP o
     castable <- o .:? "castable"
     onCompletion <- o .:? "cast-completion" .!= []
+    name <- Name <$> o .: "name"
     pure EntityDescription
-      { etyResourceSpec = resSpec
+      { etyName = name
+      , etyResourceSpec = resSpec
       , etyCastable = castable
       , etyCastCompletion = onCompletion
       }
@@ -71,22 +73,22 @@ instance FromJSON EntityDescription where
         in liftA2 (<|>) resource cooldown
 
 data Level = Level
-  { levelEntities :: HashMap Text EntityDescription
+  { levelEntities :: HashMap Name EntityDescription
   , levelDefaultKeyMap :: KeyMap
   } deriving (Eq, Show)
 
 instance FromJSON Level where
-  parseJSON = withObject "level" $ \o -> Level <$> o .: "resources" <*> o .:? "default-keymap" .!= mempty
+  parseJSON = withObject "level" $ \o -> Level <$> (toMap <$> o .: "resources") <*> o .:? "default-keymap" .!= mempty
+    where toMap = HashMap.fromList . fmap (\ety -> (etyName ety, ety))
 
 instantiateEntity
   :: HasAll
        w
        '[EntityCounter, Name, ResBounds, ResRegen, ResAmount, Castable, OnCastCompleted]
-  => Text
-  -> EntityDescription
+  => EntityDescription
   -> System w (Entity Void)
-instantiateEntity name desc = do
-  ety <- newEntity $ Name name
+instantiateEntity desc = do
+  ety <- newEntity $ etyName desc
   for_ (etyResourceSpec desc) $ \resSpec -> do
     set ety $ resSpecBounds resSpec
     for_ (resSpecRegen resSpec) $ set ety
@@ -108,7 +110,7 @@ instantiateLevel
   => Level
   -> System w ()
 instantiateLevel level =
-  for_ (HashMap.toList $ levelEntities level) $ uncurry instantiateEntity
+  for_ (levelEntities level) instantiateEntity
 
 loadLevel :: MonadIO m => FilePath -> m Level
 loadLevel path = liftIO $ decodeFileEither path >>= either throwIO pure

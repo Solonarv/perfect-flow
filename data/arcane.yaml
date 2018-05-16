@@ -1,11 +1,11 @@
 resources:
-  mana:
+  - name: mana
     bounds:
       min: 0
       max: 1000
     regen: 5
     start: max
-  arcane-power:
+  - name: arcane-power
     modifier:
       duration: 150
       stack-limit: 4
@@ -20,7 +20,7 @@ resources:
           modifier-type: more
           magnitude: 0.3
           stacking: true
-  arcane-blast:
+  - name: arcane-blast
     castable:
       cost:
         mana: 50
@@ -31,7 +31,7 @@ resources:
       - apply-modifier:
           target: arcane-power
           stacks: 1
-  arcane-barrage:
+  - name: arcane-barrage
     bounds:
       min: 0
       max: 150
@@ -48,7 +48,7 @@ resources:
       - remove-modifier:
           target: arcane-power
           stacks: all
-  evocation:
+  - name: evocation
     bounds:
       min: 0
       max: 1350 # 45 seconds

@@ -1,5 +1,5 @@
 resources:
-  strike:
+  - name: strike
     # bounds:
     #   min: 0
     #   max: 100
