@@ -1,9 +1,12 @@
+{-# language OverloadedStrings #-}
 module Game.Flow.Resources where
 
 import Control.Monad
 import Data.Foldable
 import Data.Monoid
 import Data.Traversable
+
+import qualified Data.Text.IO as Text
 
 import Apecs
 
@@ -46,3 +49,27 @@ tryStartCasting spellName = do
       ( lift $ modify (cast resource) (ResAmount . subtract toSpend . getResAmount)
       , All $ toSpend <= current
       )
+
+resolveCasting :: HasAll w '[Casting, Castable, Name, OnCastCompleted, DamageDealt] => System w ()
+resolveCasting =
+  cimapM_ $ \(e, (Casting progress, Castable casttime _cost _direction)) ->
+    when (progress >= casttime) $ do
+      destroy $ cast e @Casting
+      getUnsafe (cast e @Name) >>= liftIO . \(Name n) -> Text.putStrLn $ "Finished casting " <> n
+      get (cast e @OnCastCompleted) >>= traverse_ (\case
+        OnCastCompleted acts -> for_ acts $ \case
+          Damage dmg -> do
+            liftIO . putStrLn $ "Dealt " ++ show dmg ++ " damage!"
+            modifyGlobal $ mappend $ DamageDealt (Sum dmg)) . getSafe
+
+advanceCasting :: HasAll w '[Casting] => Double -> System w ()
+advanceCasting dT = cmap $ \(Casting progress) -> Casting (progress + dT)
+
+regenResources :: HasAll w '[ResAmount, ResRegen] => Double -> System w ()
+regenResources dT = rmap $ \(ResAmount amt, ResRegen reg) -> ResAmount (amt + reg * dT)
+
+clampResources :: HasAll w '[ResAmount, ResBounds] => System w ()
+clampResources = rmap $ \(ResAmount amt, ResBounds lo hi) -> ResAmount (clamp lo hi amt)
+
+clamp :: Ord a => a -> a -> a -> a
+clamp lo hi x = min hi (max x lo)

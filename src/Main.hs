@@ -6,19 +6,18 @@ module Main where
 import Control.Arrow ((&&&))
 import Control.Concurrent (threadDelay)
 import Control.Monad
-import Data.Foldable
 import Data.IORef
-import Data.Monoid  
+import Data.Monoid
 import Data.Proxy
 import Data.Traversable
 import System.Environment
 import System.IO (hFlush, stdout)
 
+import qualified Data.Text as Text
+
 import Apecs
 import SDL hiding (get)
 import qualified SDL.Font as Font
-
-import qualified Data.Text.IO as Text
 
 import Game.Engine.Input
 import Game.Flow.LevelParser
@@ -34,9 +33,10 @@ main = do
   world    <- initWorld
   window   <- createWindow "Perfect Flow" defaultWindow
   renderer <- createRenderer window (-1) defaultRenderer
-  level <- getArgs >>= loadLevel . head
-  runWith  world $ performSetup level
-  runWith world $ mainLoop renderer arial12 (levelDefaultKeyMap level <> defaultKeyMap)
+  level    <- getArgs >>= loadLevel . head
+  runWith world $ performSetup level
+  runWith world
+    $ mainLoop renderer arial12 (levelDefaultKeyMap level <> defaultKeyMap)
   runWith world
     $   getGlobal
     >>= liftIO
@@ -51,13 +51,12 @@ mainLoop renderer font keymap = do
   events     <- liftIO pollEvents
   shouldExit <- for (eventPayload <$> events) $ \case
     KeyboardEvent kbEvt -> if keyboardEventKeyMotion kbEvt == Pressed
-      then
-        case lookupKeyAction (keyboardEventKeysym kbEvt) keymap of
-          Nothing -> pure False
-          Just act -> case act of
-            ExitGame -> pure True
-            CancelCasting -> False <$ resetStore (Proxy @Casting)
-            Cast spellName -> False <$ tryStartCasting (Name spellName)
+      then case lookupKeyAction (keyboardEventKeysym kbEvt) keymap of
+        Nothing  -> pure False
+        Just act -> case act of
+          ExitGame       -> pure True
+          CancelCasting  -> False <$ resetStore (Proxy @Casting)
+          Cast spellName -> False <$ tryStartCasting (Name spellName)
       else pure False
     WindowClosedEvent _ -> pure True
     QuitEvent           -> pure True
@@ -65,7 +64,7 @@ mainLoop renderer font keymap = do
   if or shouldExit
     then liftIO $ hFlush stdout
     else do
-      tick 1
+      tick (1 / 30)
       render renderer font
       liftIO $ hFlush stdout
       fixFrameTime (1 / 30)
@@ -88,7 +87,7 @@ render r font = do
   renderBackdrop
   renderResources
   renderCasting
-  -- renderDamageCounter
+  renderDamageCounter
   present r
  where
   renderBackdrop = do
@@ -100,7 +99,6 @@ render r font = do
       ix <- liftIO $ readIORef countRef <* modifyIORef' countRef (+ 1)
       let y       = 10 + ix * 50
           topleft = P (V2 10 y)
-      -- TODO render name of resource
       getSafe <$> get (cast res @Name) >>= \case
         Nothing        -> pure ()
         Just (Name nm) -> do
@@ -108,24 +106,28 @@ render r font = do
           texSize <-
             uncurry V2 . (textureWidth &&& textureHeight) <$> queryTexture tex
           copy r tex Nothing (Just $ Rectangle (P (V2 320 y)) texSize)
-      liftIO
-        $ renderBar (Rectangle topleft (V2 300 50))
-        $ (amt - lo)
-        / (hi - lo)
+      liftIO $ renderBar (Rectangle topleft (V2 300 50)) (amt - lo) (hi - lo)
   renderCasting =
     cmapM_ $ \(Castable casttime _cost direction, Casting progress) -> do
-      let progressRaw  = progress / casttime
-          barFillLevel = case direction of
-            NormalCast    -> progressRaw
-            ChanneledCast -> 1 - progressRaw
-      liftIO $ renderBar (Rectangle (P (V2 300 400)) (V2 300 50)) barFillLevel
-  renderBar bbox@(Rectangle pt (V2 w h)) progress = do
+      let cur = case direction of
+            NormalCast    -> progress
+            ChanneledCast -> casttime - progress
+      liftIO $ renderBar (Rectangle (P (V2 300 400)) (V2 300 50)) cur casttime
+  renderBar bbox@(Rectangle pt (V2 w h)) cur full = do
+    let progress = if cur == full then 1 else cur / full
     rendererDrawColor r $= V4 0 0 0 0
     drawRect r (Just bbox)
     rendererDrawColor r $= V4 130 0 0 20
     fillRect r . Just $ Rectangle
       (pt + pure 1)
       (V2 (round $ (fromIntegral $ w - 2) * progress) (h - 2))
+  renderDamageCounter = do
+    DamageDealt (Sum dmg) <- getGlobal
+    let str = "Damage dealt: " <> Text.pack (show dmg)
+    tex     <- Font.solid font (V4 0 0 0 0) str >>= createTextureFromSurface r
+    texSize <-
+      uncurry V2 . (textureWidth &&& textureHeight) <$> queryTexture tex
+    copy r tex Nothing (Just $ Rectangle (P (V2 600 100)) texSize)
 
 performSetup :: Level -> System' ()
 performSetup level = do
@@ -134,29 +136,8 @@ performSetup level = do
 
 tick :: Double -> System' ()
 tick dT = do
-  regenResources
+  regenResources dT
   clampResources
-  advanceCasting
+  advanceCasting dT
   resolveCasting
- where
-  regenResources =
-    rmap $ \(ResAmount amt, ResRegen reg) -> ResAmount (amt + reg * dT)
-  clampResources =
-    rmap $ \(ResAmount amt, ResBounds lo hi) -> ResAmount (clamp lo hi amt)
-  advanceCasting = cmap $ \(Casting progress) -> Casting (progress + dT)
-  resolveCasting =
-    cimapM_ $ \(e, (Casting progress, Castable casttime _cost _direction)) ->
-      when (progress >= casttime) $ do
-        destroy $ cast e @Casting
-        get (cast e @Name) >>= liftIO . \case
-          Safe Nothing         -> putStrLn "Finished casting"
-          Safe (Just (Name n)) -> Text.putStrLn $ "Finished casting " <> n
-        get (cast e @OnCastCompleted) >>= \case
-          Safe Nothing                       -> pure ()
-          Safe (Just (OnCastCompleted acts)) -> for_ acts $ \case
-            Damage dmg -> do
-              liftIO . putStrLn $ "Dealt " ++ show dmg ++ " damage!"
-              modifyGlobal $ mappend $ DamageDealt (Sum dmg)
 
-clamp :: Ord a => a -> a -> a -> a
-clamp lo hi x = min hi (max x lo)
