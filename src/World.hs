@@ -1,5 +1,4 @@
 {-# language TemplateHaskell #-}
-{-# language GeneralizedNewtypeDeriving #-}
 module World
   ( World(..)
   , initWorld
@@ -9,6 +8,7 @@ module World
 
 import Apecs
 
+import Game.Engine.Input.SkillIndex
 import Game.Flow.Components
 
 makeWorld "World" [ ''ResAmount
@@ -21,5 +21,6 @@ makeWorld "World" [ ''ResAmount
                   , ''OnCastCompleted
                   , ''DamageDealt
                   , ''Time
+                  , ''SkillIndex
                   ]
 type System' = System World

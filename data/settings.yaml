@@ -1,0 +1,25 @@
+keymap:
+  - key: q
+    action:
+      type: cast
+      skill: ability-1
+  - key: w
+    action:
+      type: cast
+      skill: ability-2
+  - key: e
+    action:
+      type: cast
+      skill: ability-3
+  - key: r
+    action:
+      type: cast
+      skill: ability-4
+  - key: space
+    action:
+      type: cancel-casting
+  - key: F4
+    modifiers: [alt]
+    action:
+      type: exit-game
+interrupt-on-cast: false

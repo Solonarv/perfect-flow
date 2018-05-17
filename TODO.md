@@ -19,9 +19,9 @@
  - Stop hardcoding font to load (probably bundle a font instead)
  - create installer (using self-extract?)
  - allow startup without commandline arguments, prompt user for level to load
- - configuration / user settings
-    - custom key binds
-        - additional layer of abstraction over key binds?
+ - DONE! configuration / user settings
+    - DONE! custom key binds
+        - DONE! additional layer of abstraction over key binds?
           - instead of key -> cast: skill, do key -> cast skill #x and assign each usable skill a generic index
           - Hey look, another use-case for the fancy EntityIndex store!
  

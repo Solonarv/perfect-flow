@@ -4,7 +4,6 @@ module Game.Flow.LevelParser where
 
 import Control.Applicative
 import Control.Exception (throwIO)
-import Control.Monad
 import Data.Foldable
 import Data.Maybe
 import Data.Void
@@ -13,20 +12,19 @@ import Apecs
 
 import Control.Monad.IO.Class
 import Data.Aeson
-import Data.HashMap.Strict (HashMap)
-import qualified Data.HashMap.Strict as HashMap
 import Data.Vector (Vector)
 import Data.Yaml.Include
 
 import Apecs.Util
-import Game.Engine.Input
+import Game.Engine.Input.SkillIndex
 import Game.Flow.Components
 
 data EntityDescription = EntityDescription
   { etyName :: Name 
   , etyResourceSpec :: Maybe ResourceSpecification
   , etyCastable :: Maybe Castable
-  , etyCastCompletion :: Vector Action
+  , etyCastCompletion :: Maybe (Vector Action)
+  , etySkillIndex :: Maybe SkillIndex
   } deriving (Eq, Show)
 
 data ResourceSpecification = ResourceSpecification
@@ -36,17 +34,12 @@ data ResourceSpecification = ResourceSpecification
   } deriving (Eq, Show)
 
 instance FromJSON EntityDescription where
-  parseJSON = withObject "entity" $ \o -> do
-    resSpec <- resourceSpecificationP o
-    castable <- o .:? "castable"
-    onCompletion <- o .:? "cast-completion" .!= []
-    name <- Name <$> o .: "name"
-    pure EntityDescription
-      { etyName = name
-      , etyResourceSpec = resSpec
-      , etyCastable = castable
-      , etyCastCompletion = onCompletion
-      }
+  parseJSON = withObject "entity" $ \o -> EntityDescription
+      <$> (Name <$> o .: "name")
+      <*> resourceSpecificationP o
+      <*> o .:? "castable"
+      <*> o .:? "cast-completion"
+      <*> o .:? "skill-index"
     where
       resourceSpecificationP obj =
         let
@@ -74,16 +67,15 @@ instance FromJSON EntityDescription where
 
 data Level = Level
   { levelEntities :: Vector EntityDescription
-  , levelDefaultKeyMap :: KeyMap
   } deriving (Eq, Show)
 
 instance FromJSON Level where
-  parseJSON = withObject "level" $ \o -> Level <$> o .: "resources" <*> o .:? "default-keymap" .!= mempty
+  parseJSON = withObject "level" $ \o -> Level <$> o .: "resources"
 
 instantiateEntity
   :: HasAll
        w
-       '[EntityCounter, Name, ResBounds, ResRegen, ResAmount, Castable, OnCastCompleted]
+       '[EntityCounter, Name, ResBounds, ResRegen, ResAmount, Castable, OnCastCompleted, SkillIndex]
   => EntityDescription
   -> System w (Entity Void)
 instantiateEntity desc = do
@@ -96,16 +88,14 @@ instantiateEntity desc = do
       Max          -> resBoundsMax . resSpecBounds $ resSpec
       Fixed amount -> amount
   for_ (etyCastable desc) $ set ety
-  unless (null $ etyCastCompletion desc)
-    $ set ety
-    $ OnCastCompleted
-    $ etyCastCompletion desc
+  for_ (etyCastCompletion desc) $ set ety . OnCastCompleted
+  for_ (etySkillIndex desc) $ set ety
   pure (cast ety)
 
 instantiateLevel
   :: HasAll
        w
-       '[EntityCounter, Name, ResBounds, ResRegen, ResAmount, Castable, OnCastCompleted]
+       '[EntityCounter, Name, ResBounds, ResRegen, ResAmount, Castable, OnCastCompleted, SkillIndex]
   => Level
   -> System w ()
 instantiateLevel level =

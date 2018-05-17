@@ -6,6 +6,7 @@ module Main where
 import Control.Arrow ((&&&))
 import Control.Concurrent (threadDelay)
 import Control.Monad
+import Data.Foldable
 import Data.IORef
 import Data.Monoid
 import Data.Proxy
@@ -19,7 +20,9 @@ import Apecs
 import SDL hiding (get)
 import qualified SDL.Font as Font
 
+import Apecs.EntityIndex
 import Game.Engine.Input
+import Game.Engine.Settings
 import Game.Flow.LevelParser
 import Game.Flow.Resources
 import World
@@ -33,10 +36,11 @@ main = do
   world    <- initWorld
   window   <- createWindow "Perfect Flow" defaultWindow
   renderer <- createRenderer window (-1) defaultRenderer
+  settings <- loadGameSettings defaultGameSettingsPath
   level    <- getArgs >>= loadLevel . head
   runWith world $ performSetup level
   runWith world
-    $ mainLoop renderer arial12 (levelDefaultKeyMap level <> defaultKeyMap)
+    $ mainLoop renderer arial12 settings
   runWith world
     $   getGlobal
     >>= liftIO
@@ -46,17 +50,17 @@ main = do
     .   getSum
     .   getDamageDealt
 
-mainLoop :: Renderer -> Font.Font -> KeyMap -> System' ()
-mainLoop renderer font keymap = do
+mainLoop :: Renderer -> Font.Font -> GameSettings -> System' ()
+mainLoop renderer font settings = do
   events     <- liftIO pollEvents
   shouldExit <- for (eventPayload <$> events) $ \case
     KeyboardEvent kbEvt -> if keyboardEventKeyMotion kbEvt == Pressed
-      then case lookupKeyAction (keyboardEventKeysym kbEvt) keymap of
+      then case lookupKeyAction (keyboardEventKeysym kbEvt) (gameSettingsKeyMap settings) of
         Nothing  -> pure False
         Just act -> case act of
           ExitGame       -> pure True
           CancelCasting  -> False <$ resetStore (Proxy @Casting)
-          Cast spellName -> False <$ tryStartCasting (Name spellName)
+          Cast skillIndex -> do lookupEntity skillIndex >>= traverse_ (tryStartCasting settings . cast); pure False
       else pure False
     WindowClosedEvent _ -> pure True
     QuitEvent           -> pure True
@@ -68,7 +72,7 @@ mainLoop renderer font keymap = do
       render renderer font
       -- liftIO $ hFlush stdout
       fixFrameTime (1 / 30)
-      mainLoop renderer font keymap
+      mainLoop renderer font settings
 
 fixFrameTime :: Double -> System' ()
 fixFrameTime desiredFrameTime = do

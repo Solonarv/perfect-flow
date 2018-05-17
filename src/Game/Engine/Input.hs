@@ -16,8 +16,9 @@ import Data.Yaml
 import SDL.Input.Keyboard as SDL
 
 import Game.Engine.Input.Keycodes
+import Game.Engine.Input.SkillIndex
 
-data InputAction = ExitGame | CancelCasting | Cast !Text deriving (Eq, Ord, Show)
+data InputAction = ExitGame | CancelCasting | Cast !SkillIndex deriving (Eq, Ord, Show)
 
 newtype KeyMap = KeyMap { keyMappings :: Map SDL.Keycode KeyModifierActionMap } deriving (Eq, Ord, Show)
 instance Semigroup KeyMap where

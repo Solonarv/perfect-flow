@@ -1,10 +1,6 @@
 resources:
   - name: strike
-    # bounds:
-    #   min: 0
-    #   max: 100
-    # regen: 1
-    # start: max
+    skill-index: ability-1
     cooldown: 3
     castable:
       cost:
@@ -14,6 +10,7 @@ resources:
     cast-completion:
       - damage: 100
   - name: uber-strike
+    skill-index: ability-2
     cooldown: 15
     castable:
       cost:
@@ -23,6 +20,7 @@ resources:
     cast-completion:
       - damage: 1337
   - name: weak-strike
+    skill-index: ability-3
     cooldown: 0
     castable:
       cost: {}
@@ -30,16 +28,3 @@ resources:
       type: normal
     cast-completion:
       - damage: 20
-default-keymap:
-  - key: q
-    action:
-      type: cast
-      skill: strike
-  - key: w
-    action:
-      type: cast
-      skill: uber-strike
-  - key: e
-    action:
-      type: cast
-      skill: weak-strike
