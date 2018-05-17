@@ -11,7 +11,7 @@ import Data.Monoid
 import Data.Proxy
 import Data.Traversable
 import System.Environment
-import System.IO (hFlush, stdout)
+-- import System.IO (hFlush, stdout)
 
 import qualified Data.Text as Text
 
@@ -62,11 +62,11 @@ mainLoop renderer font keymap = do
     QuitEvent           -> pure True
     _                   -> pure False
   if or shouldExit
-    then liftIO $ hFlush stdout
+    then pure () -- liftIO $ hFlush stdout
     else do
       tick (1 / 30)
       render renderer font
-      liftIO $ hFlush stdout
+      -- liftIO $ hFlush stdout
       fixFrameTime (1 / 30)
       mainLoop renderer font keymap
 
