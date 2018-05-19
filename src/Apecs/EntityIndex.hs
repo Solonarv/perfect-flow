@@ -4,19 +4,19 @@ module Apecs.EntityIndex
   , lookupEntityUnsafe
   ) where
 
-import Data.Foldable
-import Data.IORef
-import Data.Maybe
+import           Data.Foldable
+import           Data.IORef
+import           Data.Maybe
 
-import Apecs.Types
+import           Apecs.Types
 
-import Control.Monad.IO.Class
-import Data.Hashable
-import Data.HashMap.Strict (HashMap)
-import qualified Data.HashMap.Strict as HashMap
-import Data.IntMap.Strict (IntMap)
-import qualified Data.IntMap.Strict as IntMap
-import qualified Data.Vector.Unboxed as VU
+import           Control.Monad.IO.Class
+import           Data.Hashable
+import           Data.HashMap.Strict    (HashMap)
+import qualified Data.HashMap.Strict    as HashMap
+import           Data.IntMap.Strict     (IntMap)
+import qualified Data.IntMap.Strict     as IntMap
+import qualified Data.Vector.Unboxed    as VU
 
 data EntityIndex k = EntityIndex (IORef (HashMap k Int)) (IORef (IntMap k))
 instance (Eq k, Hashable k) => Store (EntityIndex k) where

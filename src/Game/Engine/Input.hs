@@ -1,22 +1,23 @@
-{-# language OverloadedStrings, OverloadedLists #-}
+{-# LANGUAGE OverloadedLists   #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Game.Engine.Input where
 
-import Control.Applicative
-import Data.Semigroup
-import GHC.Exts (IsList(..))
+import           Control.Applicative
+import           Data.Semigroup
+import           GHC.Exts                     (IsList (..))
 
-import Control.Monad.Reader.Class
-import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
-import Data.Text (Text)
-import Data.Vector (Vector)
-import qualified Data.Vector as Vector
-import Data.Yaml
+import           Control.Monad.Reader.Class
+import           Data.Map.Strict              (Map)
+import qualified Data.Map.Strict              as Map
+import           Data.Text                    (Text)
+import           Data.Vector                  (Vector)
+import qualified Data.Vector                  as Vector
+import           Data.Yaml
 
-import SDL.Input.Keyboard as SDL
+import           SDL.Input.Keyboard           as SDL
 
-import Game.Engine.Input.Keycodes
-import Game.Engine.Input.SkillIndex
+import           Game.Engine.Input.Keycodes
+import           Game.Engine.Input.SkillIndex
 
 data InputAction = ExitGame | CancelCasting | Cast !SkillIndex deriving (Eq, Ord, Show)
 
@@ -124,9 +125,9 @@ instance ToJSON VirtualKeyModifiers where
 
 instance FromJSON InputAction where
   parseJSON = withObject "action" $ \o -> o .: "type" >>= \(t::Text) -> case t of
-    "exit-game" -> pure ExitGame
+    "exit-game"      -> pure ExitGame
     "cancel-casting" -> pure CancelCasting
-    "cast" -> Cast <$> o .: "skill"
+    "cast"           -> Cast <$> o .: "skill"
 instance ToJSON InputAction where
   toJSON = \case
     ExitGame -> object ["type" .= ("exit-game" :: Text)]

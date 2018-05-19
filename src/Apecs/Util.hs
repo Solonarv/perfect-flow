@@ -1,8 +1,8 @@
 module Apecs.Util where
 
-import Data.Kind
+import           Data.Kind
 
-import Apecs
+import           Apecs
 
 type family HasAll (w :: *) (cs :: [*]) :: Constraint where
   HasAll w '[] = ()

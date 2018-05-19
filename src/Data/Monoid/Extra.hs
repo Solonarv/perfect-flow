@@ -1,9 +1,9 @@
 module Data.Monoid.Extra where
 
-import Control.Applicative
-import Data.Semigroup
+import           Control.Applicative
+import           Data.Semigroup
 
-import Control.Monad.Trans.Class
+import           Control.Monad.Trans.Class
 
 newtype LiftMonoid f a = LiftMonoid { unLiftMonoid :: f a } deriving (Eq, Ord, Show, Functor, Applicative, Monad, Foldable, Traversable)
 

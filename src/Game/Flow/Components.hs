@@ -1,20 +1,20 @@
-{-# language OverloadedStrings #-}
-{-# language UndecidableInstances #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Game.Flow.Components where
 
-import Control.Arrow
-import Data.Monoid
+import           Control.Arrow
+import           Data.Monoid
 
-import Apecs
-  
-import Data.Aeson.Types
-import Data.Hashable
+import           Apecs
+
+import           Data.Aeson.Types
+import           Data.Hashable
 import qualified Data.HashMap.Strict as HashMap
-import Data.Scientific (toRealFloat)
-import Data.Text
-import Data.Vector (Vector)
+import           Data.Scientific     (toRealFloat)
+import           Data.Text
+import           Data.Vector         (Vector)
 
-import Apecs.EntityIndex
+import           Apecs.EntityIndex
 
 newtype ResAmount = ResAmount { getResAmount :: Double } deriving (Show, Eq)
 instance Component ResAmount where type Storage ResAmount = Map ResAmount

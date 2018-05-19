@@ -1,16 +1,16 @@
-{-# language OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Game.Engine.Settings where
 
-import Data.Semigroup
+import           Data.Semigroup
 
-import Data.Aeson
-import Data.Yaml.Include (decodeFileEither)
+import           Data.Aeson
+import           Data.Yaml.Include (decodeFileEither)
 
-import Game.Engine.Input
+import           Game.Engine.Input
 
 data GameSettings = GameSettings
   { gameSettingsInterruptOnCast :: Bool
-  , gameSettingsKeyMap :: KeyMap
+  , gameSettingsKeyMap          :: KeyMap
   } deriving (Eq, Ord, Show)
 
 instance Semigroup GameSettings where

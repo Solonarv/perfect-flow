@@ -1,22 +1,22 @@
-{-# language OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Game.Flow.Resources where
 
-import Control.Monad
-import Data.Bifunctor
-import Data.Foldable
-import Data.Monoid
-import Data.Traversable
+import           Control.Monad
+import           Data.Bifunctor
+import           Data.Foldable
+import           Data.Monoid
+import           Data.Traversable
 
-import qualified Data.Text.IO as Text
+import qualified Data.Text.IO         as Text
 
-import Apecs
-import qualified Apecs.Slice as Slice
+import           Apecs
+import qualified Apecs.Slice          as Slice
 
-import Apecs.Util
-import Apecs.EntityIndex
-import Data.Monoid.Extra
-import Game.Engine.Settings
-import Game.Flow.Components
+import           Apecs.EntityIndex
+import           Apecs.Util
+import           Data.Monoid.Extra
+import           Game.Engine.Settings
+import           Game.Flow.Components
 
 {- | NOTE: getUnsafe is used only on entities that are known to have the requested components as noted in their type. The one use of @getUnsafe . cast@ is safe because the @cast@ is a down-cast. -}
 tryStartCasting

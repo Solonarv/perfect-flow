@@ -1,4 +1,4 @@
-{-# language TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell #-}
 module World
   ( World(..)
   , initWorld
@@ -6,10 +6,10 @@ module World
   , module Game.Flow.Components
   ) where
 
-import Apecs
+import           Apecs
 
-import Game.Engine.Input.SkillIndex
-import Game.Flow.Components
+import           Game.Engine.Input.SkillIndex
+import           Game.Flow.Components
 
 makeWorld "World" [ ''ResAmount
                   , ''ResBounds

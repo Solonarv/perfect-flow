@@ -1,22 +1,22 @@
-{-# language OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Game.Engine.Input.Keycodes
   ( parseKeycode
   , showKeycode
   ) where
 
-import Data.Bifunctor
-import Data.Char (ord)
-import Data.Maybe
-import Data.Tuple
+import           Data.Bifunctor
+import           Data.Char                (ord)
+import           Data.Maybe
+import           Data.Tuple
 
-import Data.HashMap.Strict (HashMap)
-import qualified Data.HashMap.Strict as HashMap
-import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
-import Data.Text (Text)
-import qualified Data.Text as Text
+import           Data.HashMap.Strict      (HashMap)
+import qualified Data.HashMap.Strict      as HashMap
+import           Data.Map.Strict          (Map)
+import qualified Data.Map.Strict          as Map
+import           Data.Text                (Text)
+import qualified Data.Text                as Text
 
-import SDL.Input.Keyboard.Codes
+import           SDL.Input.Keyboard.Codes
 
 parseKeycode :: Text -> Keycode
 parseKeycode = fromMaybe KeycodeUnknown . flip HashMap.lookup nameToKeycode

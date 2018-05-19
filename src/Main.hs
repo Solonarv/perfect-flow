@@ -1,31 +1,31 @@
+{-# LANGUAGE OverloadedLists   #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE OverloadedLists #-}
 
 module Main where
 
-import Control.Arrow ((&&&))
-import Control.Concurrent (threadDelay)
-import Control.Monad
-import Data.Foldable
-import Data.IORef
-import Data.Monoid
-import Data.Proxy
-import Data.Traversable
-import System.Environment
+import           Control.Arrow         ((&&&))
+import           Control.Concurrent    (threadDelay)
+import           Control.Monad
+import           Data.Foldable
+import           Data.IORef
+import           Data.Monoid
+import           Data.Proxy
+import           Data.Traversable
+import           System.Environment
 -- import System.IO (hFlush, stdout)
 
-import qualified Data.Text as Text
+import qualified Data.Text             as Text
 
-import Apecs
-import SDL hiding (get)
-import qualified SDL.Font as Font
+import           Apecs
+import           SDL                   hiding (get)
+import qualified SDL.Font              as Font
 
-import Apecs.EntityIndex
-import Game.Engine.Input
-import Game.Engine.Settings
-import Game.Flow.LevelParser
-import Game.Flow.Resources
-import World
+import           Apecs.EntityIndex
+import           Game.Engine.Input
+import           Game.Engine.Settings
+import           Game.Flow.LevelParser
+import           Game.Flow.Resources
+import           World
 
 main :: IO ()
 main = do

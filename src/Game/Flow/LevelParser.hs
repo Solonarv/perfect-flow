@@ -1,35 +1,35 @@
-{-# language OverloadedStrings #-}
-{-# language OverloadedLists #-}
+{-# LANGUAGE OverloadedLists   #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Game.Flow.LevelParser where
 
-import Control.Applicative
-import Control.Exception (throwIO)
-import Data.Foldable
-import Data.Maybe
-import Data.Void
+import           Control.Applicative
+import           Control.Exception            (throwIO)
+import           Data.Foldable
+import           Data.Maybe
+import           Data.Void
 
-import Apecs
+import           Apecs
 
-import Control.Monad.IO.Class
-import Data.Aeson
-import Data.Vector (Vector)
-import Data.Yaml.Include
+import           Control.Monad.IO.Class
+import           Data.Aeson
+import           Data.Vector                  (Vector)
+import           Data.Yaml.Include
 
-import Apecs.Util
-import Game.Engine.Input.SkillIndex
-import Game.Flow.Components
+import           Apecs.Util
+import           Game.Engine.Input.SkillIndex
+import           Game.Flow.Components
 
 data EntityDescription = EntityDescription
-  { etyName :: Name 
-  , etyResourceSpec :: Maybe ResourceSpecification
-  , etyCastable :: Maybe Castable
+  { etyName           :: Name
+  , etyResourceSpec   :: Maybe ResourceSpecification
+  , etyCastable       :: Maybe Castable
   , etyCastCompletion :: Maybe (Vector Action)
-  , etySkillIndex :: Maybe SkillIndex
+  , etySkillIndex     :: Maybe SkillIndex
   } deriving (Eq, Show)
 
 data ResourceSpecification = ResourceSpecification
-  { resSpecBounds :: ResBounds
-  , resSpecRegen :: Maybe ResRegen
+  { resSpecBounds     :: ResBounds
+  , resSpecRegen      :: Maybe ResRegen
   , resSpecStartValue :: AmountSpec
   } deriving (Eq, Show)
 
