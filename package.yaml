@@ -27,6 +27,10 @@ dependencies:
   - unordered-containers
   - mtl
   - transformers
+  - filepath
+  - directory
+  - lens
+  - linear
 
 executables:
   perfect-flow:
