@@ -3,28 +3,32 @@
 
 module Main where
 
-import           Control.Arrow         ((&&&))
-import           Control.Concurrent    (threadDelay)
+import           Control.Arrow           ((&&&))
+import           Control.Concurrent      (threadDelay)
 import           Control.Monad
 import           Data.Foldable
 import           Data.IORef
+import           Data.Maybe
 import           Data.Monoid
 import           Data.Proxy
 import           Data.Traversable
 import           System.Environment
+import           System.FilePath
 -- import System.IO (hFlush, stdout)
 
-import qualified Data.Text             as Text
+import qualified Data.Text               as Text
 
 import           Apecs
-import           SDL                   hiding (get)
-import qualified SDL.Font              as Font
+import           SDL                     hiding (get)
+import qualified SDL.Font                as Font
 
 import           Apecs.EntityIndex
 import           Game.Engine.Input
+import           Game.Engine.LevelSelect
 import           Game.Engine.Settings
 import           Game.Flow.LevelParser
 import           Game.Flow.Resources
+import           Paths
 import           World
 
 main :: IO ()
@@ -37,7 +41,11 @@ main = do
   window   <- createWindow "Perfect Flow" defaultWindow
   renderer <- createRenderer window (-1) defaultRenderer
   settings <- loadGameSettings defaultGameSettingsPath
-  level    <- getArgs >>= loadLevel . head
+  level    <- getArgs >>= \case
+    lvl:_ -> loadLevel lvl
+    [] -> getSelectedLevel (dataDir </> "levels.yaml") renderer (Rect 0 (V2 800 600)) arial12 >>= \case
+      Nothing -> error "could not load level"
+      Just lv -> loadLevel (dataDir </> lv)
   runWith world $ performSetup level
   runWith world
     $ mainLoop renderer arial12 settings

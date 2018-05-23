@@ -1,0 +1,6 @@
+- path: levels/three-strikes.yaml
+  name: Three Strikes
+- path: levels/arcane.yaml
+  name: Arcane Mage
+- path: levels/warcry.yaml
+  name: Warcries
