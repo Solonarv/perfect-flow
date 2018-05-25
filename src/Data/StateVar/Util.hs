@@ -1,4 +1,7 @@
-module Data.StateVar.Util where
+module Data.StateVar.Util
+  ( withStateVar
+  , ($=)
+  ) where
 
 import           UnliftIO
 

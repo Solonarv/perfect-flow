@@ -7,31 +7,23 @@ import           Control.Exception      (throwIO)
 import           Control.Monad
 import           Data.Foldable
 import           Data.IORef
-import           Foreign.C.Types        (CInt)
-import           GHC.Word
 
 import           Control.Lens
 import           Control.Monad.IO.Class
 import           Data.Aeson
 import           Data.Text              (Text)
-import qualified Data.Text              as Text
 import           Data.Vector            (Vector, (!?))
 import qualified Data.Vector            as Vector
 import           Data.Yaml.Include
 import           Linear.V2
 import           Linear.V4
 
-import           SDL                    (($=))
 import qualified SDL
 import qualified SDL.Font               as SDL
 
 import           Data.Ord.Extra
 import           Data.StateVar.Util
-import           Debug.Trace.StdOut
-
-type Rect = SDL.Rectangle CInt
-pattern Rect :: V2 a -> V2 a -> SDL.Rectangle a
-pattern Rect v0 v1 = SDL.Rectangle (SDL.P v0) v1
+import           SDL.UI
 
 data LevelInfo = LevelInfo
   { _liPath :: FilePath
@@ -153,31 +145,9 @@ renderLevelList state = do
       enclosingBox = state ^. lssBoxes . boxLevelList
       Rect topleft dims = enclosingBox
       entryDims = dims & _y .~ 20
-  for_ paired $ \(ix, level) -> do
-    let rdrTarget = Rect (topleft & _y +~ (20 * fromIntegral ix)) entryDims
-        bgcolor = if ix == state ^. lssSelectedLevel then gray 0.8 else gray 0.2
+  for_ paired $ \(i, level) -> do
+    let rdrTarget = Rect (topleft & _y +~ (20 * fromIntegral i)) entryDims
+        bgcolor = if i == state ^. lssSelectedLevel then gray 0.8 else gray 0.2
         fgcolor = black
         levelName = level ^. liName
     renderText r (state ^. lssFont) rdrTarget fgcolor bgcolor levelName
-
-renderText :: SDL.Renderer -> SDL.Font -> Rect -> SDL.Color -> SDL.Color -> Text -> IO ()
-renderText r font (Rect pos dims) fg bg text = do
-  surf <- SDL.shaded font fg bg text
-  tex <- SDL.createTextureFromSurface r surf
-  texInfo <- SDL.queryTexture tex
-  let w = min (SDL.textureWidth texInfo) (dims ^. _x)
-      h = min (SDL.textureHeight texInfo) (dims ^. _y)
-      shrunkDims = V2 w h
-  SDL.copy r tex (Just $ Rect 0 shrunkDims) (Just $ Rect pos shrunkDims)
-
-black :: SDL.Color
-black = V4 0 0 0 0
-
-gray :: Double -> V4 Word8
-gray deg = V4 lit lit lit 0 where lit = round $ deg * 255
-
-infix 4 `inRect`
-inRect :: V2 CInt -> Rect -> Bool
-inRect pos rect@(Rect p0 dims) = (local^._x `between0` dims^._x) && (local^._y `between0` dims^._x)
-  where
-    local = pos - p0

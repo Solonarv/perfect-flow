@@ -1,0 +1,3 @@
+[submodule "sdl-apecs-ui"]
+	path = sdl-apecs-ui
+	url = https://github.com/Solonarv/sdl-apecs-ui
