@@ -6,20 +6,20 @@ resources:
     regen: 1
     start: max
   - name: enduring-cry
+    skill-index: ability-1
     castable:
       cost:
         warcry-cooldown: max
         mana: 21
       time: 0
       type: normal
-    cast-completion:
-      # whatever
+    cast-completion: [] # whatever
   - name: rallying-cry
+    skill-index: ability-2
     castable:
       cost:
         warcry-cooldown: max
         mana: 27
       time: 0
       type: normal
-    cast-completion:
-      # whatever
+    cast-completion: [] # whatever

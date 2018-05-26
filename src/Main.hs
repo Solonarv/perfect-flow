@@ -3,8 +3,8 @@
 
 module Main where
 
-import           Control.Arrow           ((&&&))
-import           Control.Concurrent      (threadDelay)
+import           Control.Arrow                ((&&&))
+import           Control.Concurrent           (threadDelay)
 import           Control.Monad
 import           Data.Foldable
 import           Data.IORef
@@ -16,14 +16,15 @@ import           System.Environment
 import           System.FilePath
 -- import System.IO (hFlush, stdout)
 
-import qualified Data.Text               as Text
+import qualified Data.Text                    as Text
 
 import           Apecs
-import           SDL                     hiding (get)
-import qualified SDL.Font                as Font
+import           SDL                          hiding (get)
+import qualified SDL.Font                     as Font
 
 import           Apecs.EntityIndex
 import           Game.Engine.Input
+import           Game.Engine.Input.SkillIndex
 import           Game.Engine.LevelSelect
 import           Game.Engine.Settings
 import           Game.Flow.LevelParser
@@ -103,28 +104,48 @@ render r font = do
   present r
  where
   renderBackdrop = do
-    rendererDrawColor r $= V4 255 255 255 0
+    rendererDrawColor r $= V4 255 255 255 255
     fillRect r Nothing
   renderResources = do
-    countRef <- liftIO $ newIORef 0
+    barsRef <- liftIO $ newIORef 0
+    iconsRef <- liftIO $ newIORef 0
     cimapM_ $ \(res, (ResAmount amt, ResBounds lo hi)) -> do
-      ix <- liftIO $ readIORef countRef <* modifyIORef' countRef (+ 1)
-      let y       = 10 + ix * 50
-          topleft = P (V2 10 y)
+      idx <- getSafe <$> get (cast res @SkillIndex)
+      when (isNothing idx) $ do
+        ix <- liftIO $ readIORef barsRef <* modifyIORef' barsRef (+ 1)
+        let y       = 10 + ix * 50
+            topleft = P (V2 10 y)
+        getSafe <$> get (cast res @Name) >>= \case
+          Nothing        -> pure ()
+          Just (Name nm) -> do
+            tex <- Font.solid font (V4 0 0 0 0) nm >>= createTextureFromSurface r
+            texSize <-
+              uncurry V2 . (textureWidth &&& textureHeight) <$> queryTexture tex
+            copy r tex Nothing (Just $ Rectangle (P (V2 320 y)) texSize)
+        renderBar (Rectangle topleft (V2 300 50)) (amt - lo) (hi - lo)
+    cimapM_ $ \(res, SkillIndex txt) -> do
+      ix <- liftIO $ readIORef iconsRef <* modifyIORef' iconsRef (+ 1)
+      let x = 240 + ix * 80
+          topleft = V2 x 480
+          dims = V2 80 80
+      amt <- maybe 0 getResAmount . getSafe <$> get (cast res @ResAmount)
+      ResBounds lo hi <- fromMaybe (ResBounds 0 0) . getSafe <$> get (cast res @ResBounds)
+      renderBar (Rectangle (P topleft) dims) (amt - lo) (hi - lo)
       getSafe <$> get (cast res @Name) >>= \case
         Nothing        -> pure ()
         Just (Name nm) -> do
           tex <- Font.solid font (V4 0 0 0 0) nm >>= createTextureFromSurface r
-          texSize <-
-            uncurry V2 . (textureWidth &&& textureHeight) <$> queryTexture tex
-          copy r tex Nothing (Just $ Rectangle (P (V2 320 y)) texSize)
-      liftIO $ renderBar (Rectangle topleft (V2 300 50)) (amt - lo) (hi - lo)
+          texSize <- uncurry V2 . (textureWidth &&& textureHeight) <$> queryTexture tex
+          copy r tex Nothing (Just $ Rectangle (P $ topleft - V2 0 20) texSize)
+      tex <- Font.solid font (V4 0 0 0 0) txt >>= createTextureFromSurface r
+      texSize <- uncurry V2 . (textureWidth &&& textureHeight) <$> queryTexture tex
+      copy r tex Nothing (Just $ Rectangle (P $ topleft + V2 0 80) texSize)
   renderCasting =
     cmapM_ $ \(Castable casttime _cost direction, Casting progress) -> do
       let cur = case direction of
             NormalCast    -> progress
             ChanneledCast -> casttime - progress
-      liftIO $ renderBar (Rectangle (P (V2 300 400)) (V2 300 50)) cur casttime
+      renderBar (Rectangle (P (V2 300 400)) (V2 300 50)) cur casttime
   renderBar bbox@(Rectangle pt (V2 w h)) cur full = do
     let progress = if cur == full then 1 else cur / full
     rendererDrawColor r $= V4 0 0 0 0

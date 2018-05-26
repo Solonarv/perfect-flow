@@ -5,9 +5,7 @@
 module Game.Engine.LevelSelect where
 
 import           Control.Exception      (throwIO)
-import           Control.Monad
 import           Data.Foldable
-import           Data.IORef
 import           Data.Semigroup
 
 import           Control.Lens.Operators
@@ -25,8 +23,6 @@ import qualified SDL
 import qualified SDL.Font               as SDL
 
 import           Apecs.Default
-import           Data.Ord.Extra
-import           Data.StateVar.Util
 import           Debug.Trace.StdOut
 import           SDL.Color
 import           SDLUI

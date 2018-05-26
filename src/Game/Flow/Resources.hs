@@ -18,7 +18,8 @@ import           Data.Monoid.Extra
 import           Game.Engine.Settings
 import           Game.Flow.Components
 
-{- | NOTE: getUnsafe is used only on entities that are known to have the requested components as noted in their type. The one use of @getUnsafe . cast@ is safe because the @cast@ is a down-cast. -}
+-- | NOTE: getUnsafe is used only on entities that are known to have the requested components
+-- as noted in their type. The one use of @getUnsafe . cast@ is safe because the @cast@ is a down-cast.
 tryStartCasting
   :: HasAll w '[Name, Castable, Casting, ResAmount, ResBounds]
   => GameSettings
