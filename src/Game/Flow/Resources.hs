@@ -13,7 +13,7 @@ import           Apecs
 import qualified Apecs.Slice          as Slice
 
 import           Apecs.EntityIndex
-import           Apecs.Util
+import           Apecs.Extra
 import           Data.Monoid.Extra
 import           Game.Engine.Settings
 import           Game.Flow.Components

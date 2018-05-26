@@ -33,6 +33,7 @@ dependencies:
   - linear
   - StateVar
   - unliftio
+  - sdl-apecs-ui
 
 executables:
   perfect-flow:

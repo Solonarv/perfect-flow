@@ -43,7 +43,7 @@ main = do
   settings <- loadGameSettings defaultGameSettingsPath
   level    <- getArgs >>= \case
     lvl:_ -> loadLevel lvl
-    [] -> getSelectedLevel (dataDir </> "levels.yaml") renderer (Rect 0 (V2 800 600)) arial12 >>= \case
+    [] -> getSelectedLevel (dataDir </> "levels.yaml") window (Rectangle  (P 0) (V2 800 600)) arial12 >>= \case
       Nothing -> error "could not load level"
       Just lv -> loadLevel (dataDir </> lv)
   runWith world $ performSetup level

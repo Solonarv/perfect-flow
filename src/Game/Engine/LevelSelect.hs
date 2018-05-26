@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedLists   #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell   #-}
@@ -7,8 +8,10 @@ import           Control.Exception      (throwIO)
 import           Control.Monad
 import           Data.Foldable
 import           Data.IORef
+import           Data.Semigroup
 
-import           Control.Lens
+import           Control.Lens.Operators
+import           Control.Lens.TH
 import           Control.Monad.IO.Class
 import           Data.Aeson
 import           Data.Text              (Text)
@@ -16,14 +19,17 @@ import           Data.Vector            (Vector, (!?))
 import qualified Data.Vector            as Vector
 import           Data.Yaml.Include
 import           Linear.V2
-import           Linear.V4
 
+import           Apecs
 import qualified SDL
 import qualified SDL.Font               as SDL
 
+import           Apecs.Default
 import           Data.Ord.Extra
 import           Data.StateVar.Util
-import           SDL.UI
+import           Debug.Trace.StdOut
+import           SDL.Color
+import           SDLUI
 
 data LevelInfo = LevelInfo
   { _liPath :: FilePath
@@ -35,44 +41,48 @@ instance FromJSON LevelInfo where
     <$> o .: "path"
     <*> o .: "name"
 
-data LSSBoxes = LSSBoxes
-  { _boxExit                :: Rect
-  , _boxOk                  :: Rect
-  , _boxLevelList           :: Rect
-  , _boxLevelListMaxEntries :: Int
+data LSBoxes = LSBoxes
+  { boxExit                :: Rect
+  , boxOk                  :: Rect
+  , boxLevelList           :: Rect
+  , boxLevelListMaxEntries :: Int
   }
-makeLenses ''LSSBoxes
 
-data LevelSelectState = LSS
-  { _lssSelectedLevel :: Int
-  , _lssScrollOffset  :: Int
-  , _lssLevelList     :: Vector LevelInfo
-  , _lssRenderer      :: SDL.Renderer
-  , _lssFont          :: SDL.Font
-  , _lssBoxes         :: LSSBoxes
-  }
-makeLenses ''LevelSelectState
+newtype SelectedLevel = SelectedLevel Int deriving Show
+instance Monoid SelectedLevel where mempty = SelectedLevel $ -1; mappend = const id
+instance Component SelectedLevel where type Storage SelectedLevel = Global SelectedLevel
+
+newtype LevelEntry = LevelEntry Int deriving Show
+instance Component LevelEntry where type Storage LevelEntry = Map LevelEntry
+
+newtype LevelList = LevelList (Vector LevelInfo) deriving (Monoid, FromJSON)
+instance Component LevelList where type Storage LevelList = Global LevelList
+
+makeWorldWithUI "LevelSelectDialog" [''LevelList, ''SelectedLevel, ''LevelEntry]
 
 getSelectedLevel
   :: MonadIO m
   => FilePath
-  -> SDL.Renderer
+  -> SDL.Window
   -> Rect
   -> SDL.Font
   -> m (Maybe FilePath)
-getSelectedLevel lvlListPath renderer rect font = do
-  levelList <- liftIO $ decodeFileEither lvlListPath >>= either throwIO pure
-  let initialState = LSS
-        { _lssSelectedLevel      = -1
-        , _lssScrollOffset       = 0
-        , _lssLevelList          = levelList
-        , _lssRenderer           = renderer
-        , _lssFont               = font
-        , _lssBoxes              = calculateBoxes rect
-        }
-  liftIO $ newIORef initialState >>= runSelectLevel
+getSelectedLevel lvlListPath win rect font = liftIO $ do
+  levelList <- decodeFileEither @LevelList lvlListPath >>= either throwIO pure
+  world <- initLevelSelectDialog
+  liftIO $ runWith world $ do
+    setGlobal $ RenderTarget win
+    setGlobal levelList
+    setFallback $ TxtFont font
+    setFallback defaultLvlColor
+    setupUI rect
+    uiLoop
+    SelectedLevel i <- getGlobal
+    liftIO . putStrLn $ "Selected level: " <> show i
+    let LevelList levels = levelList
+    return $ _liPath <$> levels !? i
 
-calculateBoxes :: Rect -> LSSBoxes
+calculateBoxes :: Rect -> LSBoxes
 calculateBoxes (Rect p0 dims) =
   let
     buttonDims = V2 50 20
@@ -84,70 +94,34 @@ calculateBoxes (Rect p0 dims) =
     selectorDims = dims & _y -~ 20
     selectorOrigin = p0
     lineCount = selectorDims^._y `quot` 20
-  in LSSBoxes
-    { _boxExit = Rect exitOrigin buttonDims
-    , _boxOk = Rect okOrigin buttonDims
-    , _boxLevelList = Rect selectorOrigin selectorDims
-    , _boxLevelListMaxEntries = fromIntegral lineCount
+  in LSBoxes
+    { boxExit = Rect exitOrigin buttonDims
+    , boxOk = Rect okOrigin buttonDims
+    , boxLevelList = Rect selectorOrigin selectorDims
+    , boxLevelListMaxEntries = fromIntegral lineCount
     }
 
-runSelectLevel :: IORef LevelSelectState -> IO (Maybe FilePath)
-runSelectLevel state = do
-  readIORef state >>= renderSelectLevel
-  SDL.eventPayload <$> SDL.waitEvent >>= \case
-    SDL.WindowClosedEvent _ -> pure Nothing
-    SDL.MouseButtonEvent evtData ->
-      if SDL.mouseButtonEventMotion evtData == SDL.Pressed && SDL.mouseButtonEventButton evtData == SDL.ButtonLeft
-        then do
-          let SDL.P pos = fromIntegral <$> SDL.mouseButtonEventPos evtData
-          stateNow <- readIORef state
-          let boxes = stateNow ^. lssBoxes
-          if pos `inRect` boxes ^. boxOk
-            then pure . fmap (view liPath) $ (stateNow^.lssLevelList) !? (stateNow^.lssSelectedLevel)
-            else if pos `inRect` boxes ^. boxExit
-              then pure Nothing
-              else do
-                when (pos `inRect` boxes ^. boxLevelList) $ do
-                  let
-                    Rect p _ = boxes^.boxLevelList
-                    clickedIx = (pos^._y - p^._y) `quot` 20
-                  when (clickedIx `between` (0, fromIntegral $ length $ stateNow^.lssLevelList)) $
-                    modifyIORef state $ lssSelectedLevel .~ fromIntegral clickedIx
-                runSelectLevel state
-        else runSelectLevel state
-    _ -> runSelectLevel state
+setupUI :: Rect -> System LevelSelectDialog ()
+setupUI rect = do
+  let LSBoxes { boxExit, boxOk, boxLevelList} = calculateBoxes rect
+  world <- System ask
+  newEntity (Box boxExit, Label "Exit", onLeftClick world $ setGlobal (SelectedLevel (-1)) >> setExit True)
+  newEntity (Box boxOk, Label "Play", onLeftClick world $ setExit True)
+  LevelList levels <- getGlobal
+  let Rect lvl0 lvlDims = boxLevelList
+  for_ (Vector.zip [0..] levels) $ \(i, level) -> newEntity
+    ( Box $ Rect (lvl0 & _y +~ (20 * fromIntegral i)) (lvlDims & _y .~ 20)
+    , Label (_liName level)
+    , LevelEntry i
+    , defaultLvlColor
+    , onLeftClick world $ do
+      Apecs.rmap $ \(LevelEntry i') -> if i == i' then highlightLvlColor else defaultLvlColor
+      setGlobal =<< printId (SelectedLevel i)
+    )
 
-renderSelectLevel :: LevelSelectState -> IO ()
-renderSelectLevel state = do
-  let r = state ^. lssRenderer
-      font = state ^. lssFont
-      boxes = state ^. lssBoxes
-      vecBoxes = [ boxes ^. boxExit
-                 , boxes ^. boxOk
-                 , boxes ^. boxLevelList
-                 ]
-  SDL.rendererDrawColor r $= black
-  SDL.drawRects r vecBoxes
-  SDL.rendererDrawColor r $= gray 0.2
-  SDL.fillRects r vecBoxes
-  renderText r font (boxes ^. boxOk)   black (gray 0.8) "OK"
-  renderText r font (boxes ^. boxExit) black (gray 0.8) "Exit"
-  renderLevelList state
-  SDL.present r
+highlightLvlColor :: Colored
+highlightLvlColor = Colored { colorFG = black, colorBG = gray 0.8 }
 
-renderLevelList :: LevelSelectState -> IO ()
-renderLevelList state = do
-  let entries = state^.lssLevelList
-      r = state^.lssRenderer
-  SDL.rendererDrawColor r $= black
-  let offset = Vector.drop (state ^. lssScrollOffset) entries
-      paired = Vector.zip [0..(state ^. lssBoxes . boxLevelListMaxEntries - 1)] offset
-      enclosingBox = state ^. lssBoxes . boxLevelList
-      Rect topleft dims = enclosingBox
-      entryDims = dims & _y .~ 20
-  for_ paired $ \(i, level) -> do
-    let rdrTarget = Rect (topleft & _y +~ (20 * fromIntegral i)) entryDims
-        bgcolor = if i == state ^. lssSelectedLevel then gray 0.8 else gray 0.2
-        fgcolor = black
-        levelName = level ^. liName
-    renderText r (state ^. lssFont) rdrTarget fgcolor bgcolor levelName
+defaultLvlColor :: Colored
+defaultLvlColor = Colored { colorFG = black, colorBG = gray 0.5}
+

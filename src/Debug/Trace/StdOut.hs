@@ -1,6 +1,8 @@
-module Debug.Trace.StdOut (trace, traceShow) where
+module Debug.Trace.StdOut (trace, traceShow, printId) where
 
-import           System.IO.Unsafe (unsafePerformIO)
+import           System.IO.Unsafe       (unsafePerformIO)
+
+import           Control.Monad.IO.Class
 
 trace :: String -> a -> a
 trace s v = unsafePerformIO $ do
@@ -9,3 +11,6 @@ trace s v = unsafePerformIO $ do
 
 traceShow :: Show s => s -> a -> a
 traceShow s = trace (show s)
+
+printId :: (MonadIO m, Show a) => a -> m a
+printId a = liftIO (print a) >> pure a

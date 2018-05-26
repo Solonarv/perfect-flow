@@ -15,7 +15,7 @@ import           Data.Aeson
 import           Data.Vector                  (Vector)
 import           Data.Yaml.Include
 
-import           Apecs.Util
+import           Apecs.Extra
 import           Game.Engine.Input.SkillIndex
 import           Game.Flow.Components
 
