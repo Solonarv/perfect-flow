@@ -3,6 +3,7 @@
 
 module Main where
 
+import           Control.Applicative
 import           Control.Arrow                ((&&&))
 import           Control.Concurrent           (threadDelay)
 import           Control.Monad
@@ -30,6 +31,7 @@ import           Game.Engine.Settings
 import           Game.Flow.LevelParser
 import           Game.Flow.Resources
 import           Paths
+import           SDL.Triangle
 import           World
 
 main :: IO ()
@@ -130,7 +132,10 @@ render r font = do
           dims = V2 80 80
       amt <- maybe 0 getResAmount . getSafe <$> get (cast res @ResAmount)
       ResBounds lo hi <- fromMaybe (ResBounds 0 0) . getSafe <$> get (cast res @ResBounds)
-      renderBar (Rectangle (P topleft) dims) (amt - lo) (hi - lo)
+      costs <- maybe [] castCost . getSafe <$> get (cast res @Castable)
+      let selfCostSpec = maybe (Fixed 0) snd $ listToMaybe $ filter ((==Self) . fst) costs
+      selfCost <- resolveResourceCost (cast res) selfCostSpec
+      renderCooldownOverlay (Rectangle (P topleft) dims) (amt - lo) (selfCost - lo)
       getSafe <$> get (cast res @Name) >>= \case
         Nothing        -> pure ()
         Just (Name nm) -> do
@@ -147,13 +152,39 @@ render r font = do
             ChanneledCast -> casttime - progress
       renderBar (Rectangle (P (V2 300 400)) (V2 300 50)) cur casttime
   renderBar bbox@(Rectangle pt (V2 w h)) cur full = do
-    let progress = if cur == full then 1 else cur / full
-    rendererDrawColor r $= V4 0 0 0 0
+    let progress = if cur >= full then 1 else cur / full
+    rendererDrawColor r $= V4 0 0 0 255
     drawRect r (Just bbox)
     rendererDrawColor r $= V4 130 0 0 20
     fillRect r . Just $ Rectangle
       (pt + pure 1)
       (V2 (round $ (fromIntegral $ w - 2) * progress) (h - 2))
+  renderCooldownOverlay bbox@(Rectangle (P base) (V2 w h)) cur full = do
+    let missing = if cur >= full then 0 else 1 - cur / full
+    rendererDrawColor r $= V4 0 0 0 255
+    drawRect r (Just bbox)
+    when (missing > 0) $ do
+      let basePoints = [V2 0.5 0, V2 0 0, V2 0 1, V2 1 1, V2 1 0]
+          prevCorners = filter (< missing) [-1/8, 1/8, 3/8, 5/8, 7/8] -- always non-empty because missing >= 0
+          cornersPassed = length prevCorners
+          angleFromCorner = missing - head prevCorners
+          angleFromEdgeCenter = angleFromCorner - 1/8
+          offsetFromCenter = 0.5 * tan (angleFromEdgeCenter * pi)
+          lastPoint = case cornersPassed of
+            1 -> V2 (1 - offsetFromCenter)   0
+            2 -> V2 0                        (1 - offsetFromCenter)
+            3 -> V2 (0.5 + offsetFromCenter) 0
+            4 -> V2 0                        (0.5 + offsetFromCenter)
+            5 -> V2 (1 - offsetFromCenter)   0
+          ptsToDrawLocal = take cornersPassed basePoints ++ [lastPoint]
+          toScreenCoords = P . fmap round . (+) (fromIntegral <$> base) . liftA2 (*) (fromIntegral <$> V2 w h)
+          ptsToDrawS = toScreenCoords <$> ptsToDrawLocal
+          center = toScreenCoords (V2 0.5 0.5)
+      rendererDrawColor r $= V4 130 0 0 20
+      triangleFan r center ptsToDrawS
+
+
+
   renderDamageCounter = do
     DamageDealt (Sum dmg) <- getGlobal
     let str = "Damage dealt: " <> Text.pack (show dmg)

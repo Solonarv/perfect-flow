@@ -40,12 +40,6 @@ tryStartCasting settings spell = do
         spendCosts
         set spell (Casting 0)
  where
-  resolveResourceCost :: HasAll w '[ResBounds, ResAmount] => Entity (ResBounds, ResAmount) -> AmountSpec -> System w Double
-  resolveResourceCost ety = \case
-    Max     -> maybe 0 resBoundsMax . fst . getSafe <$> get ety
-    Min     -> maybe 0 resBoundsMin . fst . getSafe <$> get ety
-    Current -> maybe 0 getResAmount . snd . getSafe <$> get ety
-    Fixed x -> pure x
   resolveCanSpend :: HasAll w '[ResBounds, ResAmount] => Entity (ResBounds, ResAmount)-> AmountSpec -> System w (System w (), Bool)
   resolveCanSpend resource cost = do
     toSpend <- resolveResourceCost resource cost
@@ -54,6 +48,13 @@ tryStartCasting settings spell = do
       ( modify (cast resource) (ResAmount . subtract toSpend . getResAmount)
       , toSpend <= current
       )
+
+resolveResourceCost :: HasAll w '[ResBounds, ResAmount] => Entity (ResBounds, ResAmount) -> AmountSpec -> System w Double
+resolveResourceCost ety = \case
+  Max     -> maybe 0 resBoundsMax . fst . getSafe <$> get ety
+  Min     -> maybe 0 resBoundsMin . fst . getSafe <$> get ety
+  Current -> maybe 0 getResAmount . snd . getSafe <$> get ety
+  Fixed x -> pure x
 
 resolveCasting :: HasAll w '[Casting, Castable, Name, OnCastCompleted, DamageDealt] => System w ()
 resolveCasting =
