@@ -9,6 +9,14 @@ arch=${1:-win64}
 
 distDir="dist/$arch"
 
+# Move to the project's root directory
+dir="."
+while [ ! -f "$dir/package.yaml" ]; do
+    dir="$dir/.."
+done
+
+pushd $dir
+
 EXE_SUFFIX=''
 
 case arch in
@@ -76,3 +84,4 @@ done
 echo "Copying data files to $distDir"
 cp -rf data "$distDir"
 
+popd
