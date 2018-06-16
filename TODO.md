@@ -4,8 +4,8 @@
 
  - font rendering is a bit yucky; see image:
     ![screenshot of fugly rendering](docs/assets/screenshot-01.png)
- - display castable skills as icons instead of bars
- - display cooldowns on skill icon/bar
+ - display castable skills as icons instead of bars - DONE! (sort of? need sprites)
+ - display cooldowns on skill icon/bar - DONE! [showcase](https://youtu.be/tW912MZG2vI)
  - display keybind on skill icon/bar
  - display min/max/current on resource bars
 
@@ -17,8 +17,8 @@
 ## Installation / cross-platform / usability
 
  - Stop hardcoding font to load (probably bundle a font instead)
- - create installer (using self-extract?)
- - allow startup without commandline arguments, prompt user for level to load
+ - create installer (using self-extract?) - DONE! (itch.io, no installer needed)
+ - allow startup without commandline arguments, prompt user for level to load - DONE!
  - DONE! configuration / user settings
     - DONE! custom key binds
         - DONE! additional layer of abstraction over key binds?
