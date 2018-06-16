@@ -33,12 +33,29 @@ dependencies:
   - linear
   - StateVar
   - unliftio
-  - sdl-apecs-ui
+  - data-default
+  - deepseq
+  - template-haskell
 
 executables:
   perfect-flow:
     source-dirs:      src
     main:             Main.hs
+    dependencies:
+      - sdl-apecs-ui
+      - apecs-extra
+
+# Empty for now
+library: {}
+
+internal-libraries:
+  sdl-apecs-ui:
+    source-dirs:      sdl-apecs-ui
+    dependencies:
+      - apecs-extra
+  apecs-extra:
+    source-dirs:      apecs-extra
+
 
 default-extensions: &extensions
   - LambdaCase
