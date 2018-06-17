@@ -243,3 +243,4 @@ language_extensions:
   - TypeOperators
   - DataKinds
   - ExplicitNamespaces
+  - TupleSections
