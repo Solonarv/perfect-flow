@@ -244,3 +244,4 @@ language_extensions:
   - DataKinds
   - ExplicitNamespaces
   - TupleSections
+  - FunctionalDependencies

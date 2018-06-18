@@ -1,4 +1,17 @@
-module Data.ResourceCache (ResCache, newCache, collectCache, clearCache, getValue, recreateValue) where
+module Data.ResourceCache
+  ( ResCache
+  , newCache
+  , collectCache
+  , clearCache
+  , getValue
+  , recreateValue
+  , module Data.Label
+  , MonadResCache(..)
+  , gcollectCache
+  , gclearCache
+  , ggetValue
+  , grecreateValue
+  ) where
 
 import           Control.Monad
 import           Control.Monad.IO.Class
@@ -7,10 +20,15 @@ import           Data.Functor
 import           Data.IORef
 import           Data.Maybe
 import           Data.Word
+import           GHC.OverloadedLabels
+import           GHC.TypeLits
 
+import           Control.Monad.Reader
 import           Data.Hashable
 import           Data.HashMap.Strict    (HashMap)
 import qualified Data.HashMap.Strict    as HashMap
+
+import           Data.Label
 
 -- | A resource cache indexed by keys of type @k@ and containing resources of type @v@.
 data ResCache k v = ResCache
@@ -80,3 +98,32 @@ deleteValue (ResCache _ _ destroy storage) k = liftIO . void $
     destroy k val
     atomicModifyIORef' storage $ (,()) .HashMap.delete k
     )
+
+-- | This monad provides generic versions of the cache operations. Since there may be multiple caches
+-- in a given monad, a @'Symbol'@ is used to select the cache to operate on.
+class (MonadIO m, Hashable k, Eq k) => MonadResCache (sym :: Symbol) k v m | sym m -> k v where
+  getCache       :: Label sym -> m (ResCache k v)
+
+-- | @'collectCache'@ using the cache from the monadic context.
+gcollectCache :: MonadResCache sym k v m => Label sym -> m ()
+gcollectCache l = getCache l >>= collectCache
+
+-- | @'clearCache'@ using the cache from the monadic context.
+gclearCache :: MonadResCache sym k v m => Label sym -> m ()
+gclearCache l = getCache l >>= clearCache
+
+-- | @'getValue'@ using the cache from the monadic context.
+ggetValue :: MonadResCache sym k v m => Label sym -> k -> m v
+ggetValue l k = getCache l >>= flip getValue k
+
+-- | @'recreateValue'@ using the cache from the monadic context.
+grecreateValue :: MonadResCache sym k v m => Label sym -> k -> m v
+grecreateValue l k = getCache l >>= flip recreateValue k
+
+-- | @'peekValue'@ using the cache from the monadic context.
+gpeekValue :: MonadResCache sym k v m => Label sym -> k -> m (Maybe v)
+gpeekValue l k = getCache l >>= flip peekValue k
+
+-- | @'deleteValue'@ using the cache from the monadic context.
+gdeleteValue :: MonadResCache sym k v m => Label sym -> k -> m ()
+gdeleteValue l k = getCache l >>= flip deleteValue k

@@ -54,10 +54,15 @@ internal-libraries:
     source-dirs:      sdl-apecs-ui
     dependencies:
       - apecs-extra
+      - util-lib
   apecs-extra:
     source-dirs:      apecs-extra
   sdl-extra:
     source-dirs:      sdl-extra
+    dependencies:
+      - util-lib
+  util-lib:
+    source-dirs:      util-lib
 
 
 default-extensions: &extensions
@@ -67,6 +72,7 @@ default-extensions: &extensions
   - DeriveFunctor
   - DeriveFoldable
   - DeriveTraversable
+  - DeriveGeneric
   - ScopedTypeVariables
   - GADTs
   - TypeFamilies
@@ -75,7 +81,9 @@ default-extensions: &extensions
   - TypeApplications
   - MultiParamTypeClasses
   - FlexibleContexts
+  - FlexibleInstances
   - ConstraintKinds
   - TypeOperators
   - DataKinds
   - TupleSections
+  - FunctionalDependencies
