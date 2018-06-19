@@ -3,6 +3,8 @@ module Data.StateVar.Extra (
   set, set'
   ) where
 
+import           Control.Monad.IO.Class
+
 import           Data.StateVar
 
 -- | See @'($=)'@

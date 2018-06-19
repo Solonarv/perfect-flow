@@ -1,8 +1,12 @@
 module SDL.Monad.Renderer where
 
 import           Control.Monad.IO.Class
+import           Foreign.C.Types
+import           GHC.Word
 
 import           Control.Monad.Reader
+import           Data.StateVar
+import           Data.Vector.Storable   as Storable (Vector)
 import           SDL
 
 -- * Core functionality
@@ -27,33 +31,33 @@ clearM :: MonadRenderer m => m ()
 clearM = getRenderer >>= clear
 
 copyM :: MonadRenderer m => Texture -> Maybe (Rectangle CInt) -> Maybe (Rectangle CInt) -> m ()
-copyM tex src dst = do r <- getRenderer; copy r text src dst
+copyM tex src dst = do r <- getRenderer; copy r tex src dst
 
 copyExM :: MonadRenderer m => Texture -> Maybe (Rectangle CInt) -> Maybe (Rectangle CInt) -> CDouble -> Maybe (Point V2 CInt) -> V2 Bool -> m ()
 copyExM tex src dst rot fulc flip = do r <- getRenderer; copyEx r tex src dst rot fulc flip
 
 drawLineM :: MonadRenderer m => Point V2 CInt -> Point V2 CInt -> m ()
-drawLineM p q = do r <- getRenderer; drawLineM r p q
+drawLineM p q = do r <- getRenderer; drawLine r p q
 
-drawLinesM :: MonadRenderer m => Vector (Point V2 CInt) -> m ()
+drawLinesM :: MonadRenderer m => Storable.Vector (Point V2 CInt) -> m ()
 drawLinesM pts = do r <- getRenderer; drawLines r pts
 
 drawPointM :: MonadRenderer m => Point V2 CInt -> m ()
 drawPointM pt = do r <- getRenderer; drawPoint r pt
 
-drawPointsM :: MonadRenderer m => Vector (Point V2 CInt) -> m ()
+drawPointsM :: MonadRenderer m => Storable.Vector (Point V2 CInt) -> m ()
 drawPointsM pts = do r <- getRenderer; drawPoints r pts
 
 drawRectM :: MonadRenderer m => Maybe (Rectangle CInt) -> m ()
 drawRectM rect = do r <- getRenderer; drawRect r rect
 
-drawRectsM :: MonadRenderer m => Vector (Rectangle CInt) -> m ()
+drawRectsM :: MonadRenderer m => Storable.Vector (Rectangle CInt) -> m ()
 drawRectsM rects = do r <- getRenderer; drawRects r rects
 
 fillRectM :: MonadRenderer m => Maybe (Rectangle CInt) -> m ()
 fillRectM rect = do r <- getRenderer; fillRect r rect
 
-fillRectsM :: MonadRenderer m => Vector (Rectangle CInt) -> m ()
+fillRectsM :: MonadRenderer m => Storable.Vector (Rectangle CInt) -> m ()
 fillRectsM rects = do r <- getRenderer; fillRects r rects
 
 presentM :: MonadRenderer m => m ()
@@ -79,7 +83,7 @@ rdrClipRect = withRenderer rendererClipRect
 rdrLogicalSize :: MonadRenderer m => (StateVar (Maybe (V2 CInt)) -> m a) -> m a
 rdrLogicalSize = withRenderer rendererLogicalSize
 
-rdrScale :: MonadRenderer m => (StateVar (Maybe (V2 CFloat) -> m a)) -> m a
+rdrScale :: MonadRenderer m => (StateVar (V2 CFloat) -> m a) -> m a
 rdrScale = withRenderer rendererScale
 
 rdrViewport :: MonadRenderer m => (StateVar (Maybe (Rectangle CInt)) -> m a) -> m a

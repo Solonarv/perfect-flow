@@ -47,7 +47,7 @@ else
 fi
 
 echo "Copying license files..."
-cp -f "licenses/*" "$distDir"
+cp -f licenses/* "$distDir"
 
 echo "Performing build"
 stack build

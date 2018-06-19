@@ -87,3 +87,4 @@ default-extensions: &extensions
   - DataKinds
   - TupleSections
   - FunctionalDependencies
+  - ExistentialQuantification

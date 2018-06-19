@@ -245,3 +245,4 @@ language_extensions:
   - ExplicitNamespaces
   - TupleSections
   - FunctionalDependencies
+  - ExistentialQuantification

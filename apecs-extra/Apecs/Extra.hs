@@ -1,5 +1,6 @@
 module Apecs.Extra where
 
+import           Control.Monad.IO.Class
 import           Data.Kind
 
 import           Apecs
@@ -10,7 +11,7 @@ type family HasAll (w :: *) (cs :: [*]) :: Constraint where
 
 class MonadIO m => MonadSystem w m where
   liftSystem :: System w a -> m a
-  liftSystem act = getWorld >>= runSystem act
+  liftSystem act = getWorld >>= liftIO . runSystem act
   {-# inline liftSystem #-}
 
   getWorld :: m w

@@ -8,4 +8,10 @@ cd "`dirname "${SCRIPT_PATH}"`" > /dev/null
 SCRIPT_PATH="`pwd`";
 popd  > /dev/null
 
-echo "export PATH='${SCRIPT_PATH}:$PATH'"
+if [ "$1" = "-e" ]; then
+    output=echo
+else
+    output=eval
+fi
+
+$output "export PATH='${SCRIPT_PATH}:$PATH'"
