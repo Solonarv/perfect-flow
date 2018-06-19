@@ -3,7 +3,6 @@
 set -e
 
 artifacts=(perfect-flow)
-licenses=(SDL2 SDL2_ttf zlib)
 
 arch=${1:-win64}
 
@@ -48,16 +47,7 @@ else
 fi
 
 echo "Copying license files..."
-for l in "${licenses[@]}"; do
-    license="LICENSE.${l}.txt"
-    if [ -f "licenses/$license" ]; then
-        echo "Copying $license..."
-        cp -f "licenses/$license" "$distDir/$license"
-    else
-        echo "$license not found! Aborting." >&2
-        exit 1
-    fi
-done
+cp -f "licenses/*" "$distDir"
 
 echo "Performing build"
 stack build
