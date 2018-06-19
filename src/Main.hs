@@ -39,7 +39,7 @@ main = do
   putStrLn "startup"
   initializeAll
   Font.initialize
-  arial12  <- Font.load "c:\\windows\\fonts\\Arial.ttf" 12
+  arial12  <- Font.load "data/assets/fonts/OpenSans-Regular.ttf" 12
   world    <- initWorld
   window   <- createWindow "Perfect Flow" defaultWindow
   renderer <- createRenderer window (-1) defaultRenderer
