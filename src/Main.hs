@@ -24,51 +24,41 @@ import           SDL                          hiding (get)
 import qualified SDL.Font                     as Font
 
 import           Apecs.EntityIndex
+import           Apecs.Monad
 import           Game.Engine.Input
 import           Game.Engine.Input.SkillIndex
 import           Game.Engine.LevelSelect
 import           Game.Engine.Settings
+import           Game.Flow.Init
 import           Game.Flow.LevelParser
+import           Game.Flow.Monad
 import           Game.Flow.Resources
 import           Paths
+import           SDL.Extra
 import           SDL.Triangle
 import           World
 
 main :: IO ()
 main = do
-  putStrLn "startup"
-  initializeAll
-  Font.initialize
-  arial12  <- Font.load "data/assets/fonts/OpenSans-Regular.ttf" 12
-  world    <- initWorld
-  window   <- createWindow "Perfect Flow" defaultWindow
-  renderer <- createRenderer window (-1) defaultRenderer
-  settings <- loadGameSettings defaultGameSettingsPath
+  env <- initGame
   level    <- getArgs >>= \case
     lvl:_ -> loadLevel lvl
-    [] -> getSelectedLevel (dataDir </> "levels.yaml") window (Rectangle  (P 0) (V2 800 600)) arial12 >>= \case
+    [] -> runGameWith env $ getSelectedLevel (dataDir </> "levels.yaml") defaultText (Rectangle  (P 0) (V2 800 600)) >>= \case
       Nothing -> error "could not load level"
       Just lv -> loadLevel (dataDir </> lv)
-  runWith world $ performSetup level
-  runWith world
-    $ mainLoop renderer arial12 settings
-  runWith world
-    $   getGlobal
-    >>= liftIO
-    .   putStrLn
-    .   ("Total damage dealt: " ++)
-    .   show
-    .   getSum
-    .   getDamageDealt
+  runGameWith env $ do
+    performSetup level
+    mainLoop
 
-mainLoop :: Renderer -> Font.Font -> GameSettings -> System' ()
-mainLoop renderer font settings = do
-  events     <- liftIO pollEvents
+mainLoop :: Game ()
+mainLoop = do
+  settings   <- getSettings
+  events     <- pollEvents
   shouldExit <- for (eventPayload <$> events) $ \case
     KeyboardEvent kbEvt -> if keyboardEventKeyMotion kbEvt == Pressed
       then case lookupKeyAction (keyboardEventKeysym kbEvt) (gameSettingsKeyMap settings) of
         Nothing  -> pure False
-        Just act -> case act of
+        Just act -> liftSystem @World $ case act of
           ExitGame       -> pure True
           CancelCasting  -> False <$ resetStore (Proxy @Casting)
           Cast skillIndex -> do lookupEntity skillIndex >>= traverse_ (tryStartCasting settings . cast); pure False
@@ -77,16 +67,15 @@ mainLoop renderer font settings = do
     QuitEvent           -> pure True
     _                   -> pure False
   if or shouldExit
-    then pure () -- liftIO $ hFlush stdout
+    then pure ()
     else do
       tick (1 / 30)
-      render renderer font
-      -- liftIO $ hFlush stdout
+      render
       fixFrameTime (1 / 30)
-      mainLoop renderer font settings
+      mainLoop
 
-fixFrameTime :: Double -> System' ()
-fixFrameTime desiredFrameTime = do
+fixFrameTime :: Double -> Game ()
+fixFrameTime desiredFrameTime = liftSystem @World $ do
   lastFrame <- getSum . getTime <$> getGlobal
   now       <- time
   let elapsed   = now - lastFrame
@@ -94,75 +83,80 @@ fixFrameTime desiredFrameTime = do
   setGlobal . Time . Sum $ now
   liftIO $ when (remaining > 0) $ threadDelay (round $ remaining * 1e6)
 
+defaultText :: FontInfo
+defaultText = FontInfo defaultFont 12 0
 
-
-render :: Renderer -> Font.Font -> System' ()
-render r font = do
-  clear r
+render :: Game ()
+render = do
+  clearM
   renderBackdrop
   renderResources
   renderCasting
   renderDamageCounter
-  present r
+  presentM
  where
+  renderBackdrop :: Game ()
   renderBackdrop = do
-    rendererDrawColor r $= V4 255 255 255 255
-    fillRect r Nothing
+    rdrDrawColor $ setV $ V4 255 255 255 255
+    fillRectM Nothing
+  renderResources :: Game ()
   renderResources = do
     barsRef <- liftIO $ newIORef 0
     iconsRef <- liftIO $ newIORef 0
-    cimapM_ $ \(res, (ResAmount amt, ResBounds lo hi)) -> do
-      idx <- getSafe <$> get (cast res @SkillIndex)
+    lcimapM_ @World $ \(res, (ResAmount amt, ResBounds lo hi)) -> do
+      idx <- liftSystem @World $ getSafe <$> get (cast res @SkillIndex)
       when (isNothing idx) $ do
         ix <- liftIO $ readIORef barsRef <* modifyIORef' barsRef (+ 1)
         let y       = 10 + ix * 50
             topleft = P (V2 10 y)
-        getSafe <$> get (cast res @Name) >>= \case
+        liftSystem @World (getSafe <$> get (cast res @Name)) >>= \case
           Nothing        -> pure ()
           Just (Name nm) -> do
-            tex <- Font.solid font (V4 0 0 0 0) nm >>= createTextureFromSurface r
-            texSize <-
-              uncurry V2 . (textureWidth &&& textureHeight) <$> queryTexture tex
-            copy r tex Nothing (Just $ Rectangle (P (V2 320 y)) texSize)
+            tex <- renderText RenderBlended 0 defaultText nm
+            texSize <- queryTextureDims tex
+            copyM tex Nothing (Just $ Rectangle (P (V2 320 y)) texSize)
         renderBar (Rectangle topleft (V2 300 50)) (amt - lo) (hi - lo)
-    cimapM_ $ \(res, SkillIndex txt) -> do
+    lcimapM_ @World $ \(res, SkillIndex txt) -> do
       ix <- liftIO $ readIORef iconsRef <* modifyIORef' iconsRef (+ 1)
       let x = 240 + ix * 80
           topleft = V2 x 480
           dims = V2 80 80
-      amt <- maybe 0 getResAmount . getSafe <$> get (cast res @ResAmount)
-      ResBounds lo hi <- fromMaybe (ResBounds 0 0) . getSafe <$> get (cast res @ResBounds)
-      costs <- maybe [] castCost . getSafe <$> get (cast res @Castable)
+      amt             <- liftSystem @World $ maybe     0 getResAmount  . getSafe <$> get (cast res @ResAmount)
+      ResBounds lo hi <- liftSystem @World $ fromMaybe (ResBounds 0 0) . getSafe <$> get (cast res @ResBounds)
+      costs           <- liftSystem @World $ maybe     [] castCost     . getSafe <$> get (cast res @Castable)
       let selfCostSpec = maybe (Fixed 0) snd $ listToMaybe $ filter ((==Self) . fst) costs
-      selfCost <- resolveResourceCost (cast res) selfCostSpec
+      selfCost <- liftSystem @World $ resolveResourceCost (cast res) selfCostSpec
       renderCooldownOverlay (Rectangle (P topleft) dims) (amt - lo) (selfCost - lo)
-      getSafe <$> get (cast res @Name) >>= \case
+      liftSystem @World (getSafe <$> get (cast res @Name)) >>= \case
         Nothing        -> pure ()
         Just (Name nm) -> do
-          tex <- Font.solid font (V4 0 0 0 0) nm >>= createTextureFromSurface r
-          texSize <- uncurry V2 . (textureWidth &&& textureHeight) <$> queryTexture tex
-          copy r tex Nothing (Just $ Rectangle (P $ topleft - V2 0 20) texSize)
-      tex <- Font.solid font (V4 0 0 0 0) txt >>= createTextureFromSurface r
-      texSize <- uncurry V2 . (textureWidth &&& textureHeight) <$> queryTexture tex
-      copy r tex Nothing (Just $ Rectangle (P $ topleft + V2 0 80) texSize)
+          tex <- renderText RenderBlended 0 defaultText nm
+          texSize <- queryTextureDims tex
+          copyM tex Nothing (Just $ Rectangle (P $ topleft - V2 0 20) texSize)
+      tex <- renderText RenderBlended 0 defaultText txt
+      texSize <- queryTextureDims tex
+      copyM tex Nothing (Just $ Rectangle (P $ topleft + V2 0 80) texSize)
+  renderCasting :: Game ()
   renderCasting =
-    cmapM_ $ \(Castable casttime _cost direction, Casting progress) -> do
+    lcmapM_ @World $ \(Castable casttime _cost direction, Casting progress) -> do
       let cur = case direction of
             NormalCast    -> progress
             ChanneledCast -> casttime - progress
       renderBar (Rectangle (P (V2 300 400)) (V2 300 50)) cur casttime
+  renderBar :: Rectangle CInt -> Double -> Double -> Game ()
   renderBar bbox@(Rectangle pt (V2 w h)) cur full = do
     let progress = if cur >= full then 1 else cur / full
-    rendererDrawColor r $= V4 0 0 0 255
-    drawRect r (Just bbox)
-    rendererDrawColor r $= V4 130 0 0 20
-    fillRect r . Just $ Rectangle
+    rdrDrawColor $ setV black
+    drawRectM (Just bbox)
+    rdrDrawColor $ setV $ V4 130 0 0 20
+    fillRectM . Just $ Rectangle
       (pt + pure 1)
       (V2 (round $ (fromIntegral $ w - 2) * progress) (h - 2))
+  renderCooldownOverlay :: Rectangle CInt -> Double -> Double -> Game ()
   renderCooldownOverlay bbox@(Rectangle (P base) (V2 w h)) cur full = do
     let missing = if cur >= full then 0 else 1 - cur / full
-    rendererDrawColor r $= V4 0 0 0 255
-    drawRect r (Just bbox)
+    rdrDrawColor $ setV $ V4 0 0 0 255
+    drawRectM (Just bbox)
     when (missing > 0) $ do
       let basePoints = [V2 0.5 0, V2 0 0, V2 0 1, V2 1 1, V2 1 0]
           prevCorners = filter (<= missing) [-1/8, 1/8, 3/8, 5/8, 7/8] -- always non-empty because missing >= 0
@@ -180,26 +174,23 @@ render r font = do
           toScreenCoords = P . fmap round . (+) (fromIntegral <$> base) . liftA2 (*) (fromIntegral <$> V2 w h)
           ptsToDrawS = toScreenCoords <$> ptsToDrawLocal
           center = toScreenCoords (V2 0.5 0.5)
-      rendererDrawColor r $= V4 130 0 0 20
-      triangleFan r center ptsToDrawS
-
-
-
+      rdrDrawColor $ setV $ V4 130 0 0 20
+      triangleFan center ptsToDrawS
+  renderDamageCounter :: Game ()
   renderDamageCounter = do
-    DamageDealt (Sum dmg) <- getGlobal
+    DamageDealt (Sum dmg) <- liftSystem @World getGlobal
     let str = "Damage dealt: " <> Text.pack (show dmg)
-    tex     <- Font.solid font (V4 0 0 0 0) str >>= createTextureFromSurface r
-    texSize <-
-      uncurry V2 . (textureWidth &&& textureHeight) <$> queryTexture tex
-    copy r tex Nothing (Just $ Rectangle (P (V2 600 100)) texSize)
+    tex     <- renderText RenderBlended black defaultText str
+    texSize <- queryTextureDims tex
+    copyM tex Nothing (Just $ Rectangle (P (V2 600 100)) texSize)
 
-performSetup :: Level -> System' ()
-performSetup level = do
+performSetup :: Level -> Game ()
+performSetup level = liftSystem @World $ do
   setGlobal (DamageDealt 0)
   instantiateLevel level
 
-tick :: Double -> System' ()
-tick dT = do
+tick :: Double -> Game ()
+tick dT = liftSystem @World $ do
   regenResources dT
   clampResources
   advanceCasting dT

@@ -2,7 +2,6 @@
 module World
   ( World(..)
   , initWorld
-  , System'
   , module Game.Flow.Components
   ) where
 
@@ -23,4 +22,3 @@ makeWorld "World" [ ''ResAmount
                   , ''Time
                   , ''SkillIndex
                   ]
-type System' = System World

@@ -13,10 +13,14 @@ import           Linear
 import           SDL.Vect               hiding (Vector)
 import           SDL.Video.Renderer
 
+import           SDL.Monad.Renderer
+
 data Triangle = Tri !(Point V2 CInt) !(Point V2 CInt) !(Point V2 CInt)
 
-triangle :: MonadIO m => Renderer -> Triangle -> m ()
-triangle rdr (Tri p0 p1 p2) = liftIO $ triangle_ rdr (fromIntegral <$> p0) (fromIntegral <$> p1) (fromIntegral <$> p2)
+triangle :: MonadRenderer m => Triangle -> m ()
+triangle (Tri p0 p1 p2) = do
+  rdr <- getRenderer
+  liftIO $ triangle_ rdr (fromIntegral <$> p0) (fromIntegral <$> p1) (fromIntegral <$> p2)
 {-# inline triangle #-}
 
 triangle_ :: Renderer -> Point V2 Double -> Point V2 Double -> Point V2 Double -> IO ()
@@ -54,12 +58,12 @@ sortTriByY :: Ord a => V2 a -> V2 a -> V2 a -> (V2 a, V2 a, V2 a)
 sortTriByY v0 v1 v2 = let [l, m, h] = sortOn (view _y) [v0, v1, v2] in (l, m , h)
 {-# inline sortTriByY #-}
 
-triangleFan :: (Foldable f, MonadIO m) => Renderer -> Point V2 CInt -> f (Point V2 CInt) -> m ()
-triangleFan rdr apex = liftIO . void . foldr
+triangleFan :: (Foldable f, MonadRenderer m) => Point V2 CInt -> f (Point V2 CInt) -> m ()
+triangleFan apex = void . foldr
     (\point mprev -> mprev >>= \case
       Nothing -> pure (Just point)
       Just prev -> do
-        triangle rdr (Tri apex prev point)
+        triangle (Tri apex prev point)
         pure (Just point)
     )
     (pure Nothing)

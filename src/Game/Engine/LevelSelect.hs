@@ -1,12 +1,15 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedLists   #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecursiveDo       #-}
 {-# LANGUAGE TemplateHaskell   #-}
 module Game.Engine.LevelSelect where
 
 import           Control.Exception      (throwIO)
 import           Data.Foldable
+import           Data.IORef
 import           Data.Semigroup
+import           Data.Traversable
 
 import           Control.Lens.Operators
 import           Control.Lens.TH
@@ -23,7 +26,9 @@ import qualified SDL
 import qualified SDL.Font               as SDL
 
 import           Apecs.Default
+import           Apecs.Monad
 import           Debug.Trace.StdOut
+import           SDL.Cache.FontLoad
 import           SDL.Color
 import           SDLUI
 
@@ -44,39 +49,19 @@ data LSBoxes = LSBoxes
   , boxLevelListMaxEntries :: Int
   }
 
-newtype SelectedLevel = SelectedLevel Int deriving Show
-instance Monoid SelectedLevel where mempty = SelectedLevel $ -1; mappend = const id
-instance Component SelectedLevel where type Storage SelectedLevel = Global SelectedLevel
-
-newtype LevelEntry = LevelEntry Int deriving Show
-instance Component LevelEntry where type Storage LevelEntry = Map LevelEntry
-
-newtype LevelList = LevelList (Vector LevelInfo) deriving (Monoid, FromJSON)
-instance Component LevelList where type Storage LevelList = Global LevelList
-
-makeWorldWithUI "LevelSelectDialog" [''LevelList, ''SelectedLevel, ''LevelEntry]
-
-getSelectedLevel
-  :: MonadIO m
-  => FilePath
-  -> SDL.Window
-  -> Rect
-  -> SDL.Font
-  -> m (Maybe FilePath)
-getSelectedLevel lvlListPath win rect font = liftIO $ do
-  levelList <- decodeFileEither @LevelList lvlListPath >>= either throwIO pure
-  world <- initLevelSelectDialog
-  liftIO $ runWith world $ do
-    setGlobal $ RenderTarget win
-    setGlobal levelList
-    setFallback $ TxtFont font
+getSelectedLevel :: MonadSdlUI m => FilePath -> FontInfo -> Rect -> m (Maybe FilePath)
+getSelectedLevel lvlListPath font rect = do
+  levelList <- liftIO $ decodeFileEither lvlListPath >>= either throwIO pure
+  selectedLevelRef <- liftIO $ newIORef (-1)
+  cleanup <- setupUI rect levelList selectedLevelRef
+  liftSdlUI $ do
     setFallback defaultLvlColor
-    setupUI rect
-    uiLoop
-    SelectedLevel i <- getGlobal
-    liftIO . putStrLn $ "Selected level: " <> show i
-    let LevelList levels = levelList
-    return $ _liPath <$> levels !? i
+    setFallback (TxtFont font)
+  uiLoop
+  lvlIndex <- liftIO $ readIORef selectedLevelRef
+  liftIO . putStrLn $ "Selected level: " <> show lvlIndex
+  liftIO cleanup
+  return $ _liPath <$> levelList !? lvlIndex
 
 calculateBoxes :: Rect -> LSBoxes
 calculateBoxes (Rect p0 dims) =
@@ -97,23 +82,31 @@ calculateBoxes (Rect p0 dims) =
     , boxLevelListMaxEntries = fromIntegral lineCount
     }
 
-setupUI :: Rect -> System LevelSelectDialog ()
-setupUI rect = do
+setupUI :: MonadSdlUI m => Rect -> Vector LevelInfo -> IORef Int -> m (IO ())
+setupUI rect levels selectedLevelRef = liftSdlUI $ do
   let LSBoxes { boxExit, boxOk, boxLevelList} = calculateBoxes rect
-  world <- System ask
-  newEntity (Box boxExit, Label "Exit", onLeftClick world $ setGlobal (SelectedLevel (-1)) >> setExit True)
-  newEntity (Box boxOk, Label "Play", onLeftClick world $ setExit True)
-  LevelList levels <- getGlobal
+  world <- getWorld @UIWorld
+  exit <- newEntity (Box boxExit, Label "Exit", onLeftClick world $ liftIO (writeIORef selectedLevelRef (-1)) >> setExit True)
+  play <- newEntity (Box boxOk, Label "Play", onLeftClick world $ setExit True)
   let Rect lvl0 lvlDims = boxLevelList
-  for_ (Vector.zip [0..] levels) $ \(i, level) -> newEntity
-    ( Box $ Rect (lvl0 & _y +~ (20 * fromIntegral i)) (lvlDims & _y .~ 20)
-    , Label (_liName level)
-    , LevelEntry i
-    , defaultLvlColor
-    , onLeftClick world $ do
-      Apecs.rmap $ \(LevelEntry i') -> if i == i' then highlightLvlColor else defaultLvlColor
-      setGlobal =<< printId (SelectedLevel i)
-    )
+  rec
+    levelEntries <- for (Vector.zip [0..] levels) $ \(self, level) -> newEntity
+      ( Box $ Rect (lvl0 & _y +~ (20 * fromIntegral self)) (lvlDims & _y .~ 20)
+      , Label (_liName level)
+      , defaultLvlColor
+      , onLeftClick world $ do
+        Vector.imapM_
+          (\other ety ->
+            if other == self
+              then set ety highlightLvlColor
+              else set ety defaultLvlColor)
+          levelEntries
+        liftIO $ writeIORef selectedLevelRef self
+      )
+  pure $ runWith world $ do
+    destroy exit
+    destroy play
+    traverse_ destroy levelEntries
 
 highlightLvlColor :: Colored
 highlightLvlColor = Colored { colorFG = black, colorBG = gray 0.8 }

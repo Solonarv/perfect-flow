@@ -45,6 +45,7 @@ executables:
       - sdl-apecs-ui
       - apecs-extra
       - sdl-extra
+      - util-lib
 
 # Empty for now
 library: {}

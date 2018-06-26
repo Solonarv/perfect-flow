@@ -34,3 +34,6 @@ defaultGameSettingsPath = "data/settings.yaml"
 
 loadGameSettings :: FilePath -> IO GameSettings
 loadGameSettings fp = decodeFileEither fp >>= either (\e -> mempty <$ print e) pure
+
+class Monad m => MonadSettings m where
+  getSettings :: m GameSettings

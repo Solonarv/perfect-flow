@@ -1,14 +1,20 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 module Apecs.Monad where
 
+import           Control.Monad.Fix
+
 import           Apecs
 import           UnliftIO
 
--- | Orphan instance
+-- | UnliftIO - safe because System is just a ReaderT
 instance MonadUnliftIO (System w) where
   withRunInIO act = do
     world <- System ask
     liftIO $ act (\m -> runWith world m)
+
+-- | MonadFix - safe because System is just a ReaderT
+instance MonadFix (System w) where
+  mfix k = System (mfix (unSystem . k))
 
 class MonadUnliftIO m => MonadSystem w m where
   liftSystem :: System w a -> m a
