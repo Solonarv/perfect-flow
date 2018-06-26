@@ -1,10 +1,8 @@
-{-# LANGUAGE TemplateHaskell #-}
 module SDLUI
   ( module SDLUI.Components
+  , module SDLUI.Core
   , module SDLUI.Interact
   , uiLoop
-  , uiComponents
-  , makeWorldWithUI
   ) where
 
 import           Control.Monad
@@ -16,28 +14,14 @@ import qualified SDL
 
 import           Apecs.Extra
 import           SDLUI.Components
+import           SDLUI.Core
 import           SDLUI.Interact
 import           SDLUI.Render
 
-uiLoop :: HasAll w [ShouldExit, Box, Clickable, Label, Colored, Align, RenderTarget, TxtFont] => System w ()
+uiLoop :: MonadSdlUI m => m ()
 uiLoop = do
-  ShouldExit done <- getGlobal
+  ShouldExit done <- liftSdlUI getGlobal
   unless done $ do
     renderUI
     SDL.waitEvent >>= handleEvent
     uiLoop
-
-uiComponents :: [Name]
-uiComponents =
-  [ ''ShouldExit
-  , ''Box
-  , ''Clickable
-  , ''Label
-  , ''Colored
-  , ''Align
-  , ''RenderTarget
-  , ''TxtFont
-  ]
-
-makeWorldWithUI :: String -> [Name] -> DecsQ
-makeWorldWithUI name comps = Apecs.makeWorld name (comps ++ uiComponents)

@@ -6,12 +6,6 @@ import           Apecs
 import           Apecs.Constant
 import qualified SDL
 
-newtype RenderTarget = RenderTarget SDL.Window
-instance NFData RenderTarget where
-  rnf (RenderTarget w) = w `seq` ()
-instance Component RenderTarget where
-  type Storage RenderTarget = Constant RenderTarget
-
 newtype ShouldExit = ShouldExit Bool
 instance Monoid ShouldExit where
   mempty = ShouldExit False

@@ -1,4 +1,7 @@
-module SDL.Monad.Renderer where
+module SDL.Monad.Renderer
+  ( module SDL.Monad.Renderer
+  , module Data.StateVar.Extra
+  ) where
 
 import           Control.Monad.IO.Class
 import           Foreign.C.Types
@@ -8,6 +11,8 @@ import           Control.Monad.Reader
 import           Data.StateVar
 import           Data.Vector.Storable   as Storable (Vector)
 import           SDL
+
+import           Data.StateVar.Extra
 
 -- * Core functionality
 

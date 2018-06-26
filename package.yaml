@@ -54,6 +54,7 @@ internal-libraries:
     source-dirs:      sdl-apecs-ui
     dependencies:
       - apecs-extra
+      - sdl-extra
       - util-lib
   apecs-extra:
     source-dirs:      apecs-extra

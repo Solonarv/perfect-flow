@@ -10,42 +10,39 @@ import qualified SDL.Font                 as Font
 
 import           Apecs.Default
 import           Apecs.Extra
+import           Apecs.Monad
+import           SDL.Extra
 import           SDLUI.Components
 import           SDLUI.Components.Globals
+import           SDLUI.Core
 
-renderUI :: HasAll w [Box, Colored, Label, RenderTarget, TxtFont, Align] => System w ()
+renderUI :: MonadSdlUI m => m ()
 renderUI = do
   renderBackground
   renderBoxes
   renderLabels
-  RenderTarget win <- getGlobal
-  SDL.updateWindowSurface win
+  presentM
 
-renderBackground :: HasAll w [Colored, RenderTarget] => System w ()
+renderBackground :: MonadSdlUI m => m ()
 renderBackground = do
-  RenderTarget win <- getGlobal
-  surf <- SDL.getWindowSurface win
-  Colored { colorBG } <- fromMaybe (error "no default color set") <$> getFallback
-  SDL.surfaceFillRect surf Nothing colorBG
+  Colored { colorBG } <- liftSdlUI $ fromMaybe (error "no default color set") <$> getFallback
+  rdrDrawColor $ setV colorBG
+  clearM
 
-renderBoxes :: HasAll w [Box, Colored, RenderTarget] => System w ()
-renderBoxes = cimapM_ $ \(ety, Box bounds) -> do
-  RenderTarget win <- getGlobal
-  surf <- SDL.getWindowSurface win
-  Colored { colorBG } <- getUnsafe (cast ety @Colored)
-  SDL.surfaceFillRect surf (Just bounds) colorBG
+renderBoxes :: MonadSdlUI m => m ()
+renderBoxes = lcimapM_ @UIWorld $ \(ety, Box bounds) -> do
+  Colored { colorBG } <- liftSdlUI $ getUnsafe (cast ety @Colored)
+  rdrDrawColor $ setV colorBG
+  fillRectM (Just bounds)
 
-renderLabels :: HasAll w [Box, Label, RenderTarget, Colored, TxtFont, Align] => System w ()
-renderLabels = cimapM_ $ \(ety, (Box (Rect p0 outerDims), Label txt)) -> do
-  RenderTarget win <- getGlobal
-  surf <- SDL.getWindowSurface win
-  Colored { colorFG, colorBG } <- getUnsafe (cast ety @Colored)
-  TxtFont font <- getUnsafe (cast ety @TxtFont)
-  Align align <- getSafe <$> get (cast ety @Align)
-  txtSurf <- Font.shaded font colorFG colorBG txt
-  txtDims <- SDL.surfaceDimensions txtSurf
-  let targetDims = liftA2 min outerDims txtDims
+renderLabels :: MonadSdlUI m => m ()
+renderLabels = lcimapM_ @UIWorld $ \(ety, (Box (Rect p0 outerDims), Label txt)) -> do
+  Colored { colorFG, colorBG } <- liftSdlUI $             getUnsafe (cast ety @Colored)
+  TxtFont font                 <- liftSdlUI $             getUnsafe (cast ety @TxtFont)
+  Align align                  <- liftSdlUI $ getSafe <$> get       (cast ety @Align)
+  tex <- renderText (RenderShaded colorBG) colorFG font txt
+  texDims <- queryTextureDims tex
+  let targetDims = liftA2 min outerDims texDims
       offset = liftA3 doAlign align outerDims targetDims
       dest = offset + p0
-  SDL.surfaceBlit txtSurf Nothing surf (Just $ SDL.P dest)
-  pure ()
+  copyM tex Nothing (Just (SDL.Rectangle (SDL.P dest) 0))

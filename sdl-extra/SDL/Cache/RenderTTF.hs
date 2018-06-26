@@ -36,11 +36,16 @@ renderToTexture' (rdr, fontCache) (TextRenderInfo renderMethod textColor text fo
 
 type TextRenderCache = ResCache TextRenderInfo SDL.Texture
 
+type MonadFontRender m = (MonadFontCache m, MonadResCache TextRenderInfo SDL.Texture m)
+
 newTextRenderCache :: MonadIO m => FontCache -> SDL.Renderer -> m TextRenderCache
 newTextRenderCache fontCache rdr = newCache renderToTexture' 8 (\_ _ tex -> SDL.destroyTexture tex) (rdr, fontCache)
 
-newTextRenderCache_ :: (MonadResCache FontInfo SDLF.Font m, MonadRenderer m) => m TextRenderCache
+newTextRenderCache_ :: (MonadFontRender m, MonadRenderer m) => m TextRenderCache
 newTextRenderCache_ = do
   fontCache <- getCache
   rdr <- getRenderer
   newTextRenderCache fontCache rdr
+
+renderText :: MonadFontRender m => TTFRenderMethod -> SDLF.Color -> FontInfo -> Text -> m SDL.Texture
+renderText method color font txt = ggetValue (TextRenderInfo method color txt font)

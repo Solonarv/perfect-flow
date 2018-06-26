@@ -24,8 +24,10 @@ fontCacheMaxAge = 128
 newFontCache :: MonadIO m => m FontCache
 newFontCache = newCache_ loadFont' fontCacheMaxAge (const SDLF.free)
 
-getFont :: MonadResCache FontInfo SDLF.Font m => FilePath -> SDLF.PointSize -> m SDLF.Font
-getFont fp ps = getFontInfo fp ps 0
+type MonadFontCache = MonadResCache FontInfo SDLF.Font
 
-getFontInfo ::MonadResCache FontInfo SDLF.Font m => FilePath -> SDLF.PointSize -> SDLF.Index -> m SDLF.Font
-getFontInfo fp ps ix = ggetValue (FontInfo fp ps ix)
+getFont :: MonadFontCache m => FilePath -> SDLF.PointSize -> m SDLF.Font
+getFont fp ps = getFontIx fp ps 0
+
+getFontIx ::MonadFontCache m => FilePath -> SDLF.PointSize -> SDLF.Index -> m SDLF.Font
+getFontIx fp ps ix = ggetValue (FontInfo fp ps ix)

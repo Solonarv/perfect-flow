@@ -8,14 +8,16 @@ import           Apecs
 import qualified SDL
 
 import           Apecs.Extra
+import           Apecs.Monad
 import           SDLUI.Components
+import           SDLUI.Core
 
-handleEvent :: HasAll w [Box, Clickable, ShouldExit] => SDL.Event -> System w ()
+handleEvent :: MonadSdlUI m => SDL.Event -> m ()
 handleEvent = SDL.eventPayload >>> \case
-  SDL.WindowClosedEvent _ -> setExit True
-  SDL.MouseButtonEvent evtData -> cmapM_ $ \(Box bounds, Clickable handler) ->
+  SDL.WindowClosedEvent _ -> liftSdlUI $ setExit True
+  SDL.MouseButtonEvent evtData -> lcmapM_ @UIWorld $ \(Box bounds, Clickable handler) ->
     let SDL.P pos = fromIntegral <$> SDL.mouseButtonEventPos evtData
-    in when (pos `inRect` bounds) $ liftIO $ do putStrLn $ show pos <> "`inRect`" <> show bounds; handler evtData
+    in when (pos `inRect` bounds) $ liftIO $ handler evtData
   _ -> pure ()
 
 onLeftClick :: w -> System w () ->  Clickable

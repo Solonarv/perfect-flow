@@ -14,17 +14,15 @@ import           Linear.V4
 
 import           Apecs
 import qualified SDL
-import qualified SDL.Font                 as SDL
 
 import           Apecs.Default
 import           Data.Ord.Extra
+import           SDL.Extra
 import           SDLUI.Components.Globals
 
 type Rect = SDL.Rectangle CInt
 pattern Rect :: V2 a -> V2 a -> SDL.Rectangle a
 pattern Rect v0 v1 = SDL.Rectangle (SDL.P v0) v1
-
-type Color = V4 Word8
 
 infix 4 `inRect`
 inRect :: V2 CInt -> Rect -> Bool
@@ -63,6 +61,6 @@ doAlign dir outer inner = case dir of
   Center -> (outer - inner) `quot` 2
   High   -> outer - inner
 
-newtype TxtFont = TxtFont { txtFont :: SDL.Font }
+newtype TxtFont = TxtFont { txtFont :: FontInfo }
 instance Component TxtFont where
   type Storage TxtFont = Fallback (Map TxtFont)
