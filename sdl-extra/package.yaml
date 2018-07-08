@@ -1,5 +1,5 @@
-name:                perfect-flow
-version:             0.1.2.0
+name:                sdl-extra
+version:             0.1.0.0
 #synopsis:
 #description:
 homepage:            https://gitlab.com/Solonarv/perfect-flow#readme
@@ -8,45 +8,25 @@ author:              Solonarv
 maintainer:          nstamm@gmx.de
 copyright:           2018 Solonarv
 category:            Game
-extra-source-files:
-- README.md
+# extra-source-files:
+# - README.md
 
 dependencies:
   - base >= 4.7 && < 5
   - apecs
+  - hashable
   - sdl2
   - sdl2-ttf
-  - text
-  - yaml
-  - aeson
-  - scientific
-  - vector
-  - containers
-  - hashable
-  - unordered-containers
-  - mtl
-  - transformers
-  - filepath
-  - directory
-  - lens
   - linear
+  - mtl
+  - vector
   - StateVar
-  - unliftio
-  - data-default
-  - deepseq
-  - template-haskell
-  - sdl-apecs-ui
-  - apecs-extra
-  - sdl-extra
+  - text
+  - lens
   - util-lib
 
-executables:
-  perfect-flow:
-    source-dirs:      src
-    main:             Main.hs
-
-# Empty for now
-library: {}
+library:
+  source-dirs: .
 
 default-extensions: &extensions
   - LambdaCase

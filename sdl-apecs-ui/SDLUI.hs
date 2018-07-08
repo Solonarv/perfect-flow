@@ -7,8 +7,6 @@ module SDLUI
 
 import           Control.Monad
 
-import           Language.Haskell.TH
-
 import           Apecs
 import qualified SDL
 
