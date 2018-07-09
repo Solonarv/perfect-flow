@@ -18,6 +18,8 @@ dependencies:
   - hashable
   - unordered-containers
   - StateVar
+  - fast-logger
+  - unliftio
 
 library:
   source-dirs: .

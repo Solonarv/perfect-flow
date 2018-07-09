@@ -39,16 +39,14 @@ import           SDL.Triangle
 import           World
 
 main :: IO ()
-main = do
-  env <- initGame
-  level    <- getArgs >>= \case
+main = runGame $ do
+  level    <- liftIO getArgs >>= \case
     lvl:_ -> loadLevel lvl
-    [] -> runGameWith env $ getSelectedLevel (dataDir </> "levels.yaml") defaultText (Rectangle  (P 0) (V2 800 600)) >>= \case
+    [] -> getSelectedLevel (dataDir </> "levels.yaml") defaultText (Rectangle  (P 0) (V2 800 600)) >>= \case
       Nothing -> error "could not load level"
       Just lv -> loadLevel (dataDir </> lv)
-  runGameWith env $ do
-    performSetup level
-    mainLoop
+  performSetup level
+  mainLoop
 
 mainLoop :: Game ()
 mainLoop = do

@@ -13,3 +13,6 @@ defaultFont = fontPath "OpenSans-Regular"
 
 fontPath :: FilePath -> FilePath
 fontPath font = assetDir </> "fonts" </> font <.> "ttf"
+
+logPath :: FilePath
+logPath = "logs" </> "log.txt"

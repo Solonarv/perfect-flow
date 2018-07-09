@@ -6,6 +6,7 @@ import           Control.Monad.Reader
 import           UnliftIO
 
 import           Apecs.Monad
+import           Control.Logging
 import           Data.ResourceCache
 import           Game.Engine.Settings
 import           SDL.Cache.FontLoad
@@ -24,6 +25,7 @@ data GameEnv = GameEnv
   , genvFontLoader    :: FontCache
   , genvTextRender    :: TextRenderCache
   , genvSettings      :: IORef GameSettings
+  , genvLoggingEnv    :: LoggingEnv
   }
 
 newtype Game a = Game { runGameM :: ReaderT GameEnv IO a }
@@ -49,3 +51,6 @@ instance MonadResCache TextRenderInfo SDL.Texture Game where
 
 instance MonadSettings Game where
   getSettings = asks genvSettings >>= liftIO . readIORef
+
+instance MonadLog Game where
+  logM = defaultLogM (asks genvLoggingEnv)
