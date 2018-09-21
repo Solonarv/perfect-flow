@@ -2,7 +2,7 @@ name:                apecs-extra
 version:             0.1.0.0
 #synopsis:
 #description:
-homepage:            https://gitlab.com/Solonarv/perfect-flow#readme
+github:              Solonarv/perfect-flow
 license:             MIT
 author:              Solonarv
 maintainer:          nstamm@gmx.de
