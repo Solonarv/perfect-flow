@@ -19,7 +19,7 @@ cabal.sandbox.config
 cabal.project.local
 .HTF/
 
-*.cabal
 
 *.exe
 dist/
+*.swp
