@@ -17,14 +17,34 @@
     along with Perfect Flow.  If not, see <https://www.gnu.org/licenses/>.
 -}
 {-|
-Module      :   Main
-Description :   Executable wrapper to actually launch the game.
+Module      :   PF.Main
+Description :   Main executable of the game.
 Copyright   :   2020 Nicolas Stamm
 License     :   GPL-3.0-or-later
 -}
-module Main where
 
-import PF.Main
+{-# LANGUAGE OverloadedStrings #-}
+module PF.Main where
 
-main :: IO ()
-main = pfMain
+import Reflex.SDL2 as RS
+
+pfMain :: IO ()
+pfMain = do
+  putStrLn "Initializing SDL2..."
+  initializeAll
+  let ogl = defaultOpenGL { glProfile = Core Normal 3 3 }
+  let wincfg = defaultWindow
+        { windowOpenGL = Just ogl
+        , windowResizable = True
+        , windowHighDPI = False
+        , windowInitialSize = V2 640 480
+        }
+  window <- createWindow "Perfect Flow" wincfg
+  RS.host pfApp
+  putStrLn "Shutting down!"
+  destroyWindow window
+  quit
+
+pfApp :: ConcreteReflexSDL2 ()
+pfApp = do
+  shutdownOn =<< getQuitEvent
