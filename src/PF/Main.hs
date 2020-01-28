@@ -22,11 +22,14 @@ Description :   Main executable of the game.
 Copyright   :   2020 Nicolas Stamm
 License     :   GPL-3.0-or-later
 -}
-
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 module PF.Main where
 
+import Reflex
 import Reflex.SDL2 as RS
+
+import Reflex.SDL2.UI.Layer
 
 pfMain :: IO ()
 pfMain = do
@@ -40,11 +43,13 @@ pfMain = do
         , windowInitialSize = V2 640 480
         }
   window <- createWindow "Perfect Flow" wincfg
-  RS.host pfApp
+  r <- createRenderer window (-1) defaultRenderer
+  RS.host $ runLayers r pfApp
   putStrLn "Shutting down!"
+  destroyRenderer r
   destroyWindow window
   quit
 
-pfApp :: ConcreteReflexSDL2 ()
+pfApp :: (PerformEvent t m, MonadIO (Performable m), HasSDL2Events t m) => m ()
 pfApp = do
   shutdownOn =<< getQuitEvent

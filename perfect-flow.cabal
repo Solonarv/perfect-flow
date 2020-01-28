@@ -32,5 +32,32 @@ library
   exposed-modules:     PF.Main
   hs-source-dirs:      src
   build-depends:       base >= 4.13 && <5
+                     , reflex ^>= 0.6.4
                      , reflex-sdl2 ^>= 0.3
+                     , sdl2 ^>= 2.4.1.0
+                     , reflex-sdl2-ui
+  default-language:    Haskell2010
+
+library reflex-misc-utils
+  exposed-modules:     
+  hs-source-dirs:      reflex-misc-utils
+  build-depends:       base
+                     , reflex
+  default-language:    Haskell2010
+
+library reflex-sdl2-ui
+  exposed-modules:     Reflex.SDL2.UI.Layer
+  hs-source-dirs:      reflex-sdl2-ui
+  build-depends:       base
+                     , mtl
+                     , reflex
+                     , reflex-sdl2
+                     , sdl2
+  default-language:    Haskell2010
+
+library misc-2d-utils
+  exposed-modules:     Misc.AABB
+  hs-source-dirs:      misc-2d-utils
+  build-depends:       base
+                     , linear
   default-language:    Haskell2010
