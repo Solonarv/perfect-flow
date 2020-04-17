@@ -22,8 +22,17 @@ Description :   A simple clickable "button" widget.
 Copyright   :   2020 Nicolas Stamm
 License     :   GPL-3.0-or-later
 -}
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecursiveDo #-}
 module Reflex.SDL2.UI.Button where
 
+import Control.Applicative
+import Control.Monad.Fix
+import Data.Int
+
+import Linear.Affine
 import Reflex
 import Reflex.SDL2
 
@@ -35,30 +44,30 @@ data ButtonStatus = ButtonDown | ButtonHover | ButtonUp
 
 data Button t = Button
   { buttonStatus :: Dynamic t ButtonStatus
-  , buttonClick :: Event t (V2 Double)
+  , buttonClick :: Event t (Point V2 Double)
   }
 
 data ButtonCfg t m = ButtonCfg
   { buttonCfgDraw :: Dynamic t (ButtonStatus -> DrawLayer m)
-  , buttonCfgHitAABB :: Dynamic t (AABB V2 Int)
+  , buttonCfgHitAABB :: Dynamic t (AABB V2 Int32)
   }
 
-defaultButton :: Reflex t => ButtonCfg t m
+defaultButton :: (Applicative (Performable m), Reflex t) => ButtonCfg t m
 defaultButton = ButtonCfg
   { buttonCfgDraw = constDyn mempty
-  , buttonCfgHitAABB = zeroAABB
+  , buttonCfgHitAABB = constDyn zeroAABB
   }
 
-buildButton :: ButtonCfg t m -> m (Button t)
+buildButton :: (HasSDL2Events t m, MonadHold t m, MonadFix m, DynamicWriter t (DrawLayer m) m) => ButtonCfg t m -> m (Button t)
 buildButton ButtonCfg{buttonCfgDraw, buttonCfgHitAABB} = do
 
   emouseMove <- getMouseMotionEvent
   emouseClick <- getMouseButtonEvent
 
   let processClick evt prev = do
-        aabb <- sample buttonCfgHitAABB
-        case mouseButtonEventMouseButton evt of
-          ButtonLeft -> case mouseButtonEventInputMotion evt of
+        aabb <- sample (current buttonCfgHitAABB)
+        case mouseButtonEventButton evt of
+          ButtonLeft -> case mouseButtonEventMotion evt of
             Pressed -> case fmap fromIntegral (mouseButtonEventPos evt) `posWithin` fmap fromIntegral aabb of
               Just relpos -> pure (prev <|> Just relpos)
               Nothing -> pure Nothing
@@ -66,7 +75,12 @@ buildButton ButtonCfg{buttonCfgDraw, buttonCfgHitAABB} = do
           _ -> pure prev
   disClicked <- holdUniqDyn =<< foldDynM processClick Nothing emouseClick
 
-  disInside <- holdUniqDyn =<< holdDyn =<< attachWith (flip inAABB) (current buttonCfgHitAABB) emouseMove
+  disInside <- holdUniqDyn
+    =<< holdDyn False (attachWith
+      (flip inAABB)
+      (current buttonCfgHitAABB)
+      (mouseMotionEventPos <$> emouseMove)
+    )
 
   let dStatus = ffor2 disClicked disInside \clicked inside -> if inside
         then case clicked of
@@ -74,6 +88,8 @@ buildButton ButtonCfg{buttonCfgDraw, buttonCfgHitAABB} = do
           Nothing -> ButtonHover
         else ButtonDown
   
+  layer $ buttonCfgDraw <*> dStatus
+
   let eClick = fmapMaybe id (updated disClicked)
   pure Button
     { buttonStatus = dStatus

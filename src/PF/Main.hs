@@ -22,13 +22,23 @@ Description :   Main executable of the game.
 Copyright   :   2020 Nicolas Stamm
 License     :   GPL-3.0-or-later
 -}
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecursiveDo #-}
 module PF.Main where
+
+import Control.Monad.Fix
+import Data.Functor
+import Foreign.C.Types
 
 import Reflex
 import Reflex.SDL2 as RS
+import SDL
 
+import Misc.AABB
+import Reflex.SDL2.UI.Button
 import Reflex.SDL2.UI.Layer
 
 pfMain :: IO ()
@@ -50,6 +60,45 @@ pfMain = do
   destroyWindow window
   quit
 
-pfApp :: (PerformEvent t m, MonadIO (Performable m), HasSDL2Events t m) => m ()
+pfApp :: (PerformEvent t m, MonadIO (Performable m), HasSDL2Events t m, MonadHold t m, MonadFix m, DynamicWriter t (DrawLayer m) m) => m ()
 pfApp = do
+  btn <- mdo
+    currentColor <- foldDyn (const nextColor) Red clickEvt
+    let 
+      aabb = AABB (P (V2 100 100)) (P (V2 300 200))
+      cfg = ButtonCfg
+        { buttonCfgDraw = drawButton aabb <$> currentColor
+        , buttonCfgHitAABB = pure (fromIntegral <$> aabb)
+        }
+    btn@Button{ buttonClick = clickEvt } <- buildButton cfg
+    pure btn
+  click <- getMouseButtonEvent
+  -- performEvent_ $ click <&> liftIO . print
   shutdownOn =<< getQuitEvent
+
+data Colors = Red | Green | Blue
+  deriving (Eq, Ord, Show)
+
+nextColor :: Colors -> Colors
+nextColor Red = Green
+nextColor Green = Blue
+nextColor Blue = Red
+
+drawButton :: MonadIO m => AABB V2 CInt -> Colors -> ButtonStatus -> Draw m ()
+drawButton aabb color status = mconcat
+  [ Draw \r -> do
+      rendererDrawColor r $= case color of
+        Red -> V4 255 0 0 255
+        Green -> V4 0 255 0 255
+        Blue -> V4 0 0 255 255
+      fillRect r (Just $ aabbToRect aabb)
+  , Draw \r -> do
+      rendererDrawColor r $= case status of
+        ButtonUp -> V4 128 128 128 255
+        ButtonHover -> V4 255 255 255 255
+        ButtonDown -> V4 0 0 0 255
+      drawRect r (Just $ aabbToRect aabb)
+  ]
+
+aabbToRect :: (Ord a, Num a) => AABB V2 a -> Rectangle a
+aabbToRect (AABB (P lo) (P hi)) = Rectangle (P lo) (hi - lo)

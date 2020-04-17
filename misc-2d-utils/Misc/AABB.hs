@@ -22,6 +22,7 @@ Description :   Simple axis-aligned bounding boxes - a Cartesian product of clos
 Copyright   :   2020 Nicolas Stamm
 License     :   GPL-3.0-or-later
 -}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE PatternSynonyms #-}
 module Misc.AABB where
 
@@ -33,7 +34,7 @@ import Linear.Affine
 import Linear.V2
 
 data AABB v a = MkAABB !(Point v a) !(Point v a)
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Functor)
 
 instance (Applicative v, Ord a) => Semigroup (AABB v a) where
   MkAABB l1 h1 <> MkAABB l2 h2 = MkAABB (liftA2 min l1 l2) (liftA2 max h1 h2)

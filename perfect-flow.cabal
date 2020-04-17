@@ -36,6 +36,7 @@ library
                      , reflex-sdl2 ^>= 0.3
                      , sdl2 ^>= 2.4.1.0
                      , reflex-sdl2-ui
+                     , misc-2d-utils
   default-language:    Haskell2010
 
 library reflex-misc-utils
@@ -46,13 +47,15 @@ library reflex-misc-utils
   default-language:    Haskell2010
 
 library reflex-sdl2-ui
-  exposed-modules:     Reflex.SDL2.UI.Layer
+  exposed-modules:     Reflex.SDL2.UI.Button Reflex.SDL2.UI.Layer
   hs-source-dirs:      reflex-sdl2-ui
   build-depends:       base
+                     , linear
                      , mtl
                      , reflex
                      , reflex-sdl2
                      , sdl2
+                     , misc-2d-utils
   default-language:    Haskell2010
 
 library misc-2d-utils

@@ -27,7 +27,7 @@ License     :   GPL-3.0-or-later
 {-# LANGUAGE FlexibleContexts #-}
 module Reflex.SDL2.UI.Layer where
 
-import Data.Functor (void)
+import Data.Functor
 import Data.Monoid
 
 import Control.Monad.Reader
@@ -44,13 +44,15 @@ type DrawLayer m = Draw (Performable m) ()
 layer :: (Reflex t, DynamicWriter t (DrawLayer m) m) => Dynamic t (DrawLayer m) -> m ()
 layer = tellDyn
 
-runLayers :: (PerformEvent t m, MonadFix m, MonadIO (Performable m))
+runLayers :: (PerformEvent t m, MonadFix m, MonadIO (Performable m), PostBuild t m)
           => Renderer
           -> DynamicWriterT t (DrawLayer m) m a
           -> m a
 runLayers r guest = do
   (a, layers) <- runDynamicWriterT guest
-  performEvent_ $ ffor (updated layers) \layer -> do
+  postBuild <- getPostBuild
+  let firstDraw = tag (current layers) postBuild
+  performEvent_ $ leftmost [updated layers, firstDraw] <&> \layer -> do
     SDL.rendererDrawColor r $= V4 0 0 0 255
     SDL.clear r
     performDraw layer r
