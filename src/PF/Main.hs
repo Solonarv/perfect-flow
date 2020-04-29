@@ -53,25 +53,16 @@ pfMain = do
         , windowInitialSize = V2 640 480
         }
   window <- createWindow "Perfect Flow" wincfg
-  r <- createRenderer window (-1) defaultRenderer
-  RS.host $ runLayers r pfApp
+  glContext <- SDL.glCreateContext window
+  RS.host $ runLayers glContext window pfApp
   putStrLn "Shutting down!"
   destroyRenderer r
   destroyWindow window
   quit
 
 pfApp :: (PerformEvent t m, MonadIO (Performable m), HasSDL2Events t m, MonadHold t m, MonadFix m, DynamicWriter t (DrawLayer m) m) => m ()
-pfApp = do
-  btn <- mdo
-    currentColor <- foldDyn (const nextColor) Red clickEvt
-    let 
-      aabb = AABB (P (V2 100 100)) (P (V2 300 200))
-      cfg = ButtonCfg
-        { buttonCfgDraw = drawButton aabb <$> currentColor
-        , buttonCfgHitAABB = pure (fromIntegral <$> aabb)
-        }
-    btn@Button{ buttonClick = clickEvt } <- buildButton cfg
-    pure btn
+pfApp = mdo
+  colorCyclingButton
   click <- getMouseButtonEvent
   -- performEvent_ $ click <&> liftIO . print
   shutdownOn =<< getQuitEvent
@@ -84,8 +75,47 @@ nextColor Red = Green
 nextColor Green = Blue
 nextColor Blue = Red
 
+colorCyclingButton ::
+  ( PerformEvent t m
+  , MonadIO (Performable m)
+  , HasSDL2Events t m
+  , MonadHold t m
+  , MonadFix m
+  , DynamicWriter t (DrawLayer m) m
+  ) => m (Button t)
+colorCyclingButton = mdo
+  let aabb = AABB (P (V2 100 100)) (P (V2 300 200))
+      aabbVertices = let
+        [tl, tr, br, bl] = aabbCorners aabb
+        in concat
+          [ [tl, tr, bl]
+          , [tr, br, bl]
+          ]
+
+  -- Allocate GL objects
+  vao <- alloca $ glGenVertexArrays 1
+  [vboPositions, vboColors] <- allocaArray 2 $ glGenBuffers 2
+
+  -- Write vertex positions, since they do not change
+  glBindVertexArray vao
+  glBindBuffer GL_ARRAY_BUFFER vboPositions
+  withArrayLen @Float (realToFrac <$> concatMap toList aabbVertices) $ \len ptr ->
+    glBufferData GL_ARRAY_BUFFER (fromIntegral len) ptr GL_STATIC_DRAW
+  glVertexAttribPointer 0 2 GL_FLOAT GL_FALSE 0 0
+  glEnableVertexAtrribArray 0
+  
+
+  currentColor <- foldDyn (const nextColor) Red clickEvt
+  let 
+    cfg = ButtonCfg
+      { buttonCfgDraw = drawButton vao vbo aabb <$> currentColor
+      , buttonCfgHitAABB = pure (fromIntegral <$> aabb)
+      }
+  btn@Button{ buttonClick = clickEvt } <- buildButton cfg
+  pure btn
+
 drawButton :: MonadIO m => AABB V2 CInt -> Colors -> ButtonStatus -> Draw m ()
-drawButton aabb color status = mconcat
+drawButton vao vbo aabb color status = do
   [ Draw \r -> do
       rendererDrawColor r $= case color of
         Red -> V4 255 0 0 255
@@ -99,6 +129,3 @@ drawButton aabb color status = mconcat
         ButtonDown -> V4 0 0 0 255
       drawRect r (Just $ aabbToRect aabb)
   ]
-
-aabbToRect :: (Ord a, Num a) => AABB V2 a -> Rectangle a
-aabbToRect (AABB (P lo) (P hi)) = Rectangle (P lo) (hi - lo)

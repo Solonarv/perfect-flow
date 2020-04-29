@@ -37,6 +37,7 @@ library
                      , sdl2 ^>= 2.4.1.0
                      , reflex-sdl2-ui
                      , misc-2d-utils
+                     , gl ^>= 0.9
   default-language:    Haskell2010
 
 library reflex-misc-utils
@@ -55,7 +56,18 @@ library reflex-sdl2-ui
                      , reflex
                      , reflex-sdl2
                      , sdl2
+                     , StateVar
                      , misc-2d-utils
+                     , gl
+  default-language:    Haskell2010
+
+library gl-utils
+  exposed-modules:     ForeignUtils Graphics.GL.Shaders Graphics.GL.Shaders2D
+  hs-source-dirs:      gl-utils
+  build-depends:       base
+                     , gl
+                     , bytestring
+                     , file-embed
   default-language:    Haskell2010
 
 library misc-2d-utils

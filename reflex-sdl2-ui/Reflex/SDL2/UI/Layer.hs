@@ -29,11 +29,16 @@ module Reflex.SDL2.UI.Layer where
 
 import Data.Functor
 import Data.Monoid
+import Foreign.C.Types
 
 import Control.Monad.Reader
+import Control.Monad.State
+import Data.StateVar as StateVar
 import Reflex
 import Reflex.SDL2
 import qualified SDL
+
+import Misc.AABB
 
 newtype Draw m a = Draw { performDraw :: SDL.Renderer -> m a }
   deriving (Functor, Applicative, Monad, MonadIO) via (ReaderT SDL.Renderer m)
@@ -58,3 +63,20 @@ runLayers r guest = do
     performDraw layer r
     SDL.present r
   pure a
+
+aabbToRect :: (Ord a, Num a) => AABB V2 a -> Rectangle a
+aabbToRect (AABB (P lo) (P hi)) = Rectangle (P lo) (hi - lo)
+
+rendererState :: MonadIO m => (SDL.Renderer -> StateVar s) -> Draw (StateT s m) a -> Draw m a
+rendererState sv (Draw inner) = Draw \r -> do
+  s <- StateVar.get (sv r)
+  (a, s') <- runStateT (inner r) s
+  sv r $= s'
+  pure a
+
+renderClear, renderPresent :: MonadIO m => Draw m ()
+renderClear = Draw \r -> SDL.clear r
+renderPresent = Draw \r -> SDL.present r
+
+renderCopy :: MonadIO m => SDL.Texture -> Maybe (AABB V2 CInt) -> Maybe (AABB V2 CInt) -> Draw m ()
+renderCopy tex src dst = Draw \r -> SDL.copy r tex (aabbToRect <$> src) (aabbToRect <$> dst)
