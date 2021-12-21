@@ -20,3 +20,7 @@ cabal.project.local
 .HTF/
 
 dist/
+
+# Added by cargo
+
+/target
