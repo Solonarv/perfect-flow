@@ -1,6 +1,1 @@
 packages: .
-
-allow-newer:
-  reflex-sdl2:reflex
-  reflex-sdl2:primitive
-  reflex-sdl2:dependent-sum

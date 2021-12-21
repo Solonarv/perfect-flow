@@ -29,17 +29,16 @@ License     :   GPL-3.0-or-later
 {-# LANGUAGE RecursiveDo #-}
 module PF.Main where
 
-import Control.Monad.Fix
+import Control.Monad
+import Data.Function
 import Data.Functor
 import Foreign.C.Types
 
-import Reflex
-import Reflex.SDL2 as RS
+import Graphics.GL.Core40
 import SDL
 
 import Misc.AABB
-import Reflex.SDL2.UI.Button
-import Reflex.SDL2.UI.Layer
+import Graphics.GL.Primitives2D
 
 pfMain :: IO ()
 pfMain = do
@@ -54,18 +53,12 @@ pfMain = do
         }
   window <- createWindow "Perfect Flow" wincfg
   glContext <- SDL.glCreateContext window
-  RS.host $ runLayers glContext window pfApp
+  app glContext window
   putStrLn "Shutting down!"
-  destroyRenderer r
+  -- destroyRenderer r
   destroyWindow window
   quit
 
-pfApp :: (PerformEvent t m, MonadIO (Performable m), HasSDL2Events t m, MonadHold t m, MonadFix m, DynamicWriter t (DrawLayer m) m) => m ()
-pfApp = mdo
-  colorCyclingButton
-  click <- getMouseButtonEvent
-  -- performEvent_ $ click <&> liftIO . print
-  shutdownOn =<< getQuitEvent
 
 data Colors = Red | Green | Blue
   deriving (Eq, Ord, Show)
@@ -75,57 +68,35 @@ nextColor Red = Green
 nextColor Green = Blue
 nextColor Blue = Red
 
-colorCyclingButton ::
-  ( PerformEvent t m
-  , MonadIO (Performable m)
-  , HasSDL2Events t m
-  , MonadHold t m
-  , MonadFix m
-  , DynamicWriter t (DrawLayer m) m
-  ) => m (Button t)
-colorCyclingButton = mdo
-  let aabb = AABB (P (V2 100 100)) (P (V2 300 200))
-      aabbVertices = let
-        [tl, tr, br, bl] = aabbCorners aabb
-        in concat
-          [ [tl, tr, bl]
-          , [tr, br, bl]
-          ]
 
-  -- Allocate GL objects
-  vao <- alloca $ glGenVertexArrays 1
-  [vboPositions, vboColors] <- allocaArray 2 $ glGenBuffers 2
+app :: GLContext -> Window -> IO ()
+app gl win = do
+  rect <- newRectangle
 
-  -- Write vertex positions, since they do not change
-  glBindVertexArray vao
-  glBindBuffer GL_ARRAY_BUFFER vboPositions
-  withArrayLen @Float (realToFrac <$> concatMap toList aabbVertices) $ \len ptr ->
-    glBufferData GL_ARRAY_BUFFER (fromIntegral len) ptr GL_STATIC_DRAW
-  glVertexAttribPointer 0 2 GL_FLOAT GL_FALSE 0 0
-  glEnableVertexAtrribArray 0
-  
+  let red = V4 255 0 0 255
+  rectColors rect (V4 red red red red)
 
-  currentColor <- foldDyn (const nextColor) Red clickEvt
-  let 
-    cfg = ButtonCfg
-      { buttonCfgDraw = drawButton vao vbo aabb <$> currentColor
-      , buttonCfgHitAABB = pure (fromIntegral <$> aabb)
-      }
-  btn@Button{ buttonClick = clickEvt } <- buildButton cfg
-  pure btn
+  let corners = V4
+        (V2 280 220)
+        (V2 360 220)
+        (V2 360 260)
+        (V2 280 260)
+  rectCoords rect corners
 
-drawButton :: MonadIO m => AABB V2 CInt -> Colors -> ButtonStatus -> Draw m ()
-drawButton vao vbo aabb color status = do
-  [ Draw \r -> do
-      rendererDrawColor r $= case color of
-        Red -> V4 255 0 0 255
-        Green -> V4 0 255 0 255
-        Blue -> V4 0 0 255 255
-      fillRect r (Just $ aabbToRect aabb)
-  , Draw \r -> do
-      rendererDrawColor r $= case status of
-        ButtonUp -> V4 128 128 128 255
-        ButtonHover -> V4 255 255 255 255
-        ButtonDown -> V4 0 0 0 255
-      drawRect r (Just $ aabbToRect aabb)
-  ]
+  fix \loop -> do
+    evts <- pollEvents
+    let shouldQuit = any isQuitEvent evts
+    glMakeCurrent win gl
+    glClearColor 0.0 0.0 0.0 1.0
+    glClear GL_COLOR_BUFFER_BIT
+    rectDraw rect
+    glSwapWindow win
+    unless shouldQuit loop
+
+isQuitEvent :: Event -> Bool
+isQuitEvent e = case eventPayload e of
+  KeyboardEvent ke
+    -> keyboardEventKeyMotion ke == Pressed
+    && keysymKeycode (keyboardEventKeysym ke) == KeycodeQ
+  QuitEvent -> True
+  _ -> False
