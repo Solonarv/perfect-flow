@@ -23,8 +23,9 @@ source-repository head
 
 common language
   default-language: GHC2021
-  default-extensions: ImportQualifiedPost, DerivingVia, RecordWildCards, NoFieldSelectors, OverloadedRecordDot
-                    , TypeApplications
+  default-extensions: ImportQualifiedPost, DerivingVia
+                    , DuplicateRecordFields, NamedFieldPuns, RecordWildCards, NoFieldSelectors, OverloadedRecordDot
+                    , TypeApplications, DataKinds, LambdaCase, OrPatterns, BlockArguments
 
 executable perfect-flow
   import: language
@@ -35,12 +36,12 @@ executable perfect-flow
 
 library
   import: language
-  exposed-modules:     PF.Main, PF.AppM
+  exposed-modules:     PF.Main, PF.AppM, PF.Simulation
   hs-source-dirs:      src
   build-depends:       base >= 4.22 && <5
-                     , mtl ^>= 2.3.1
+                     , mtl ^>= 2.3.1, text ^>= 2.1.4, containers ^>= 0.8.1
                      , sdl2 ^>= 2.5.6.1
-                     , misc-2d-utils
+                     , linear ^>= 1.23.3,  misc-2d-utils
                      , gl-utils
                      , gl ^>= 0.9.1
   default-language:    Haskell2010
@@ -63,5 +64,5 @@ library misc-2d-utils
   exposed-modules:     Misc.AABB
   hs-source-dirs:      misc-2d-utils
   build-depends:       base
-                     , linear
+                     , linear ^>= 1.23.3,
   default-language:    Haskell2010

@@ -32,6 +32,7 @@ import Control.Monad
 import Linear.Vector
 import Linear.Affine
 import Linear.V2
+import GHC.Records (HasField(..))
 
 data AABB v a = MkAABB !(Point v a) !(Point v a)
   deriving (Eq, Ord, Show, Functor)
@@ -49,6 +50,12 @@ pattern AABB :: (Ord a, Applicative v) => () => Point v a -> Point v a -> AABB v
 pattern AABB lo hi <- MkAABB lo hi
   where AABB v1 v2 = mkAABB v1 v2
 
+instance HasField "lo" (AABB v a) (Point v a) where
+  getField (MkAABB lo _) = lo
+
+instance HasField "hi" (AABB v a) (Point v a) where
+  getField (MkAABB _ hi) = hi
+
 isEmptyAABB :: (Ord a, Applicative v, Foldable v) => AABB v a -> Bool
 isEmptyAABB (MkAABB lo hi) = or (liftA2 (>) lo hi)
 
@@ -59,8 +66,8 @@ inAABB p (AABB lo hi) = and $ liftA3 (\c l h -> l <= c && c <= h) p lo hi
 infix 4 `posWithin`
 posWithin :: (Fractional (v a), Num a, Ord a, Additive v, Applicative v, Foldable v)
           => Point v a -> AABB v a -> Maybe (Point v a)
-posWithin p bb@(AABB lo hi) = do
-  let mid = (lo + hi) / 2
+posWithin p bb = do
+  let mid = (bb.lo + bb.hi) / 2
       rel = p .-. mid
   guard (p `inAABB` bb)
   pure (P (rel / aabbExtent bb))
