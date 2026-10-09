@@ -1,5 +1,5 @@
 {-
-    Copyright: 2020 Nicolas Stamm
+    Copyright: 2026 Nimue Eris Wesemael
 
     This file is part of Perfect Flow.
 
@@ -19,7 +19,7 @@
 {-|
 Module      :   PF.Main
 Description :   Main executable of the game.
-Copyright   :   2020 Nicolas Stamm
+Copyright   :   2026 Nimue Eris Wesemael
 License     :   GPL-3.0-or-later
 -}
 {-# LANGUAGE BlockArguments #-}
@@ -38,7 +38,9 @@ import Graphics.GL.Core40
 import SDL
 
 import Misc.AABB
-import Graphics.GL.Primitives2D
+import PF.AppM
+import Control.Monad.Reader
+import Data.Word
 
 pfMain :: IO ()
 pfMain = do
@@ -46,14 +48,14 @@ pfMain = do
   initializeAll
   let ogl = defaultOpenGL { glProfile = Core Normal 3 3 }
   let wincfg = defaultWindow
-        { windowOpenGL = Just ogl
+        { windowGraphicsContext = OpenGLContext ogl
         , windowResizable = True
         , windowHighDPI = False
         , windowInitialSize = V2 640 480
         }
   window <- createWindow "Perfect Flow" wincfg
-  glContext <- SDL.glCreateContext window
-  app glContext window
+  renderer <- createRenderer window 0 defaultRenderer
+  runAppWith window renderer app
   putStrLn "Shutting down!"
   -- destroyRenderer r
   destroyWindow window
@@ -69,28 +71,29 @@ nextColor Green = Blue
 nextColor Blue = Red
 
 
-app :: GLContext -> Window -> IO ()
-app gl win = do
-  rect <- newRectangle
+app :: AppM ()
+app = do
+  rdr <- asks (.renderer)
 
   let red = V4 255 0 0 255
-  rectColors rect (V4 red red red red)
+  let black = V4 0 0 0 255
 
-  let corners = V4
-        (V2 280 220)
-        (V2 360 220)
-        (V2 360 260)
-        (V2 280 260)
-  rectCoords rect corners
+  let rect = aabb2rect $ mkAABB
+        (P $ V2 280 220)
+        (P $ V2 360 260)
 
   fix \loop -> do
     evts <- pollEvents
     let shouldQuit = any isQuitEvent evts
-    glMakeCurrent win gl
-    glClearColor 0.0 0.0 0.0 1.0
-    glClear GL_COLOR_BUFFER_BIT
-    rectDraw rect
-    glSwapWindow win
+
+    -- draw some stuff
+    rendererDrawColor rdr $= black
+    clear rdr
+    rendererDrawColor rdr $= red
+    fillRect rdr (Just rect)
+
+    present rdr
+    -- loop
     unless shouldQuit loop
 
 isQuitEvent :: Event -> Bool
@@ -100,3 +103,6 @@ isQuitEvent e = case eventPayload e of
     && keysymKeycode (keyboardEventKeysym ke) == KeycodeQ
   QuitEvent -> True
   _ -> False
+
+aabb2rect :: AABB V2 CInt -> Rectangle CInt
+aabb2rect (AABB lo hi) = Rectangle lo (hi .-. lo)

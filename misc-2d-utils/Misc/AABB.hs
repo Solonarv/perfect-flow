@@ -1,5 +1,5 @@
 {-
-    Copyright: 2020 Nicolas Stamm
+    Copyright: 2026 Nimue Eris Wesemael
 
     This file is part of Perfect Flow.
 
@@ -19,7 +19,7 @@
 {-|
 Module      :   Misc.AABB
 Description :   Simple axis-aligned bounding boxes - a Cartesian product of closed intervals
-Copyright   :   2020 Nicolas Stamm
+Copyright   :   2026 Nimue Eris Wesemael
 License     :   GPL-3.0-or-later
 -}
 {-# LANGUAGE DeriveFunctor #-}

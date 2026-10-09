@@ -1,8 +1,0 @@
-cradle:
-  cabal:
-    - path:       "./exe"
-      component:  "perfect-flow:exe:perfect-flow"
-    - path:       "./src"
-      component:  "perfect-flow"
-    - path:       "./reflex-misc-utils"
-      component:  "perfect-flow:lib:reflex-misc-utils"
