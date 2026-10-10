@@ -37,10 +37,11 @@ executable perfect-flow
 library
   import: language
   exposed-modules:     PF.Main, PF.AppM, PF.Simulation, PF.Simulation.Notation, PF.Levels.ArcaneWizard
+                     , PF.Render
   hs-source-dirs:      src
   build-depends:       base >= 4.22 && <5
                      , mtl ^>= 2.3.1, text ^>= 2.1.4, containers ^>= 0.8.1
-                     , sdl2 ^>= 2.5.6.1
+                     , sdl2 ^>= 2.5.6.1, sdl2-ttf ^>= 2.1.3
                      , linear ^>= 1.23.3,  misc-2d-utils
                      , gl-utils
                      , gl ^>= 0.9.1

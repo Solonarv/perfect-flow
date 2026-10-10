@@ -36,16 +36,22 @@ import Foreign.C.Types
 
 import Graphics.GL.Core40
 import SDL
+import SDL.Font qualified as Font
 
 import Misc.AABB
 import PF.AppM
 import Control.Monad.Reader
 import Data.Word
+import PF.Simulation (emptyWorld)
+
+import PF.Levels.ArcaneWizard qualified
+import PF.Render
 
 pfMain :: IO ()
 pfMain = do
   putStrLn "Initializing SDL2..."
   initializeAll
+  Font.initialize
   let ogl = defaultOpenGL { glProfile = Core Normal 3 3 }
   let wincfg = defaultWindow
         { windowGraphicsContext = OpenGLContext ogl
@@ -55,10 +61,13 @@ pfMain = do
         }
   window <- createWindow "Perfect Flow" wincfg
   renderer <- createRenderer window 0 defaultRenderer
-  runAppWith window renderer app
+  opensans12 <- Font.load "data/assets/fonts/OpenSans-Regular.ttf" 12
+  runAppWith window renderer PF.Levels.ArcaneWizard.initWorld opensans12 app
   putStrLn "Shutting down!"
-  -- destroyRenderer r
+  destroyRenderer renderer
   destroyWindow window
+  Font.free opensans12
+  Font.quit
   quit
 
 
@@ -87,10 +96,7 @@ app = do
     let shouldQuit = any isQuitEvent evts
 
     -- draw some stuff
-    rendererDrawColor rdr $= black
-    clear rdr
-    rendererDrawColor rdr $= red
-    fillRect rdr (Just rect)
+    render
 
     present rdr
     -- loop
