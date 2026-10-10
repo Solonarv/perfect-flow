@@ -57,6 +57,16 @@ data World = World
   }
   deriving (Eq, Ord, Show)
 
+emptyWorld :: World
+emptyWorld = World
+  { resources = Map.empty
+  , abilities = Map.empty
+  , currently_casting = Nothing
+  , pending_effects = []
+  , tick = 0
+  , damage = 0
+  }
+
 step :: World -> World
 step = stepPendingEffects . stepCasting . stepTime
 
@@ -127,7 +137,7 @@ stopCasting :: World -> World
 stopCasting w = w{currently_casting = Nothing}
 
 payCosts :: [Cost] -> World -> Maybe World
-payCosts costs w = fmap (\res->w{resources=res}) (foldlM expend w.resources costs)
+payCosts costs w = fmap (\res->w{resources=res}) (foldM expend w.resources costs)
 
 expend :: Map Text Resource -> Cost -> Maybe (Map Text Resource)
 expend resources cost = do

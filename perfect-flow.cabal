@@ -25,7 +25,7 @@ common language
   default-language: GHC2021
   default-extensions: ImportQualifiedPost, DerivingVia
                     , DuplicateRecordFields, NamedFieldPuns, RecordWildCards, NoFieldSelectors, OverloadedRecordDot
-                    , TypeApplications, DataKinds, LambdaCase, OrPatterns, BlockArguments
+                    , TypeApplications, DataKinds, LambdaCase, OrPatterns, BlockArguments, FlexibleContexts
 
 executable perfect-flow
   import: language
@@ -36,7 +36,7 @@ executable perfect-flow
 
 library
   import: language
-  exposed-modules:     PF.Main, PF.AppM, PF.Simulation
+  exposed-modules:     PF.Main, PF.AppM, PF.Simulation, PF.Simulation.Notation, PF.Levels.ArcaneWizard
   hs-source-dirs:      src
   build-depends:       base >= 4.22 && <5
                      , mtl ^>= 2.3.1, text ^>= 2.1.4, containers ^>= 0.8.1
