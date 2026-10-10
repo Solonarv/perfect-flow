@@ -122,16 +122,22 @@ data MayInterrupt = Interrupt_Do | Interrupt_Don't
 cast :: Text -> MayInterrupt -> World -> World
 cast what int w
   | Just ability <- Map.lookup what w.abilities
-  , Just w <- payCosts ability.cost w
-  , isNothing w.currently_casting
-    || ability.cast_style == Free
-    || int == Interrupt_Do
+  , canCast ability int w
   , w <- if ability.cast_style == Free
           then w
           else w{currently_casting = Just (CurrentCast ability 0)}
   , w <- addEffects (ability.on_cast_start) w
   = stepPendingEffects w
   | otherwise = w
+
+canCast :: Ability -> MayInterrupt -> World -> Bool
+canCast ability int w
+  | Just w <- payCosts ability.cost w
+  , isNothing w.currently_casting
+    || ability.cast_style == Free
+    || int == Interrupt_Do
+  = True
+  | otherwise = False
 
 stopCasting :: World -> World
 stopCasting w = w{currently_casting = Nothing}

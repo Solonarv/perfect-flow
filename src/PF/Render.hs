@@ -53,7 +53,31 @@ drawResources = do
     copy rdr labelTex Nothing (Just $ Rectangle basePoint labelSize)
 
 drawAbilities :: AppM ()
-drawAbilities = pure ()
+drawAbilities = do
+  world <- liftIO . readIORef =<< asks (.world)
+  for_ (zip [0..] (toList world.abilities)) \(i, ability) -> do
+    rdr <- asks (.renderer)
+    let
+      width, height :: CInt
+      width = 180
+      height = 40
+      basePoint = P (V2 20 (10 + 50*i))
+      rect = Rectangle basePoint (V2 width height)
+      color
+        | canCast ability Interrupt_Don't world = V4 0 255 0 255
+        | canCast ability Interrupt_Do world = V4 255 255 0 255
+        | otherwise = V4 255 0 0 255
+    rendererDrawColor rdr $= color
+    fillRect rdr (Just rect)
+    rendererDrawColor rdr $= V4 0 0 0 255
+    drawRect rdr (Just rect)
+    font <- asks (.opensans12)
+    labelSurf <- Font.solid font (V4 60 127 240 255) ability.name
+    labelTex <- createTextureFromSurface rdr labelSurf
+    labelSize <- surfaceDimensions labelSurf
+    copy rdr labelTex Nothing (Just $ Rectangle basePoint labelSize)
+
+
 drawCasting :: AppM ()
 drawCasting = pure ()
 drawDamage :: AppM ()
