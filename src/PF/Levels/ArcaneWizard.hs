@@ -9,7 +9,7 @@ initWorld = emptyWorld
   { resources = byName
     [ Resource
       { name = "mana"
-      , min = 0, max = 100, current = 100
+      , min = 0, max = 1000, current = 1000
       }
     , chargeResource "evocation-charges" 20
     , (chargeResource "blast0" 1){current=1}
@@ -22,10 +22,10 @@ initWorld = emptyWorld
     [ Ability
       { name = "evocation"
       , cast_style = Channel
-      , cast_time = 0, channel_time = 10, channel_tick = 2
+      , cast_time = 0, channel_time = 600, channel_tick = 120
       , on_cast_start = reset_blast
       , on_cast_finish = []
-      , on_channel_tick = [Effect_GetResource "mana" 20]
+      , on_channel_tick = [Effect_GetResource "mana" 120]
       , cost = [Cost "evocation-charges" 20 False]
       , cost_tick = []
       }
@@ -42,7 +42,7 @@ initWorld = emptyWorld
     ] ++ [ Ability
       { name = this
       , cast_style = Normal
-      , cast_time = 1, channel_time = 0, channel_tick = 0
+      , cast_time = 75, channel_time = 0, channel_tick = 0
       , on_cast_start = []
       , on_cast_finish =
         [ Effect_Damage damage

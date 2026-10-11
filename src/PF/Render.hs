@@ -115,7 +115,7 @@ drawDamage = do
   world <- liftIO . readIORef =<< asks (.world)
   rdr <- asks (.renderer)
   let label = "DAMAGE: " <> Text.pack (show world.damage)
-            <> "  DPS: " <> Text.pack (show $ fromIntegral world.damage / fromIntegral world.tick)
+            <> "  DPS: " <> Text.pack (show $ round $ fromIntegral world.damage / fromIntegral world.tick * 60)
             <> "  TICK: " <> Text.pack (show world.tick)
       color = V4 80 80 0 255
   font <- asks (.opensans12)

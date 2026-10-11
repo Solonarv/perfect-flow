@@ -49,6 +49,7 @@ import PF.Render
 import Data.IORef
 import Data.Foldable
 import Data.Maybe
+import Control.Concurrent (threadDelay)
 
 pfMain :: IO ()
 pfMain = do
@@ -95,12 +96,14 @@ app = do
         (P $ V2 360 260)
 
   fix \loop -> do
+    start <- time
     evts <- pollEvents
     let shouldQuit = any isQuitEvent evts
 
     let instructions = mapMaybe parseEvent evts
     unless (null instructions) do
       liftIO $ print instructions
+    doInstruction StepTime
     for_ instructions doInstruction
 
     -- draw some stuff
@@ -108,6 +111,10 @@ app = do
 
     present rdr
     -- loop
+    end <- time
+    let elapsed = end - start
+        remaining = 1e-3*(16+2/3) - elapsed
+    liftIO . threadDelay $ floor $ remaining * 1e6
     unless shouldQuit loop
 
 isQuitEvent :: Event -> Bool
@@ -127,7 +134,7 @@ parseEvent = \case
     | ke.keyboardEventKeyMotion == Pressed
     , let keycode = ke.keyboardEventKeysym.keysymKeycode
     -> if
-        | keycode == KeycodeSpace -> Just StepTime
+        -- | keycode == KeycodeSpace -> Just StepTime
         | keycode >= Keycode0 && keycode <= Keycode9
         , i <- if keycode == Keycode0
             then 10
