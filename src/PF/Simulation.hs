@@ -8,6 +8,8 @@ import qualified Data.Map.Strict as Map
 import Data.Ord (clamp)
 import Data.Foldable
 import Data.Maybe
+import Debug.Trace (traceM, traceShow)
+import qualified Data.Text as Text
 
 data Resource = Resource
   { name :: Text
@@ -81,6 +83,7 @@ stepCasting world
     -- cast done?
     when (casting.progress >= casting.ability.cast_time) do
       modify $ addEffects casting.ability.on_cast_finish
+      -- traceM $ "finished casting "<> Text.unpack casting.ability.name <> ", adding effects " <> show casting.ability.on_cast_finish
       if isChannelStyle casting.ability.cast_style
         then modify \w->w{currently_casting = Just casting{progress= -1}}
         else modify stopCasting
@@ -94,8 +97,8 @@ stepCasting world
       w <- get
       case payCosts casting.ability.cost_tick w of
         Nothing -> modify stopCasting
-        Just w' -> do
-          put w'
+        Just paid -> do
+          modify $ \w->w{resources=paid}
           modify $ addEffects casting.ability.on_channel_tick
 
   | otherwise = world
@@ -105,7 +108,8 @@ addEffects effects world = world{pending_effects = effects <> world.pending_effe
 
 stepPendingEffects :: World -> World
 stepPendingEffects world
-  | (effect:pending_effects) <- world.pending_effects = applyEffect effect world{pending_effects}
+  | (effect:pending_effects) <- world.pending_effects
+  = stepPendingEffects $ applyEffect effect world{pending_effects}
   | otherwise = world
 
 applyEffect :: Effect -> World -> World
@@ -122,7 +126,8 @@ data MayInterrupt = Interrupt_Do | Interrupt_Don't
 cast :: Text -> MayInterrupt -> World -> World
 cast what int w
   | Just ability <- Map.lookup what w.abilities
-  , canCast ability int w
+  , Just paid <- canCast ability int w
+  , w <- w{resources = paid}
   , w <- if ability.cast_style == Free
           then w
           else w{currently_casting = Just (CurrentCast ability 0)}
@@ -130,20 +135,20 @@ cast what int w
   = stepPendingEffects w
   | otherwise = w
 
-canCast :: Ability -> MayInterrupt -> World -> Bool
+canCast :: Ability -> MayInterrupt -> World -> Maybe (Map Text Resource)
 canCast ability int w
-  | Just w <- payCosts ability.cost w
-  , isNothing w.currently_casting
+  | isNothing w.currently_casting
     || ability.cast_style == Free
     || int == Interrupt_Do
-  = True
-  | otherwise = False
+  , Just paid <- payCosts ability.cost w
+  = Just paid
+  | otherwise = Nothing
 
 stopCasting :: World -> World
 stopCasting w = w{currently_casting = Nothing}
 
-payCosts :: [Cost] -> World -> Maybe World
-payCosts costs w = fmap (\res->w{resources=res}) (foldM expend w.resources costs)
+payCosts :: [Cost] -> World -> Maybe (Map Text Resource)
+payCosts costs w = foldM expend w.resources costs
 
 expend :: Map Text Resource -> Cost -> Maybe (Map Text Resource)
 expend resources cost = do

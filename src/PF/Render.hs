@@ -13,6 +13,7 @@ import Control.Monad
 import qualified Data.Text as Text
 import qualified SDL.Font as Font
 import Control.Lens
+import Data.Maybe
 
 
 
@@ -65,8 +66,8 @@ drawAbilities = do
       basePoint = P (V2 20 (10 + 50*i))
       rect = Rectangle basePoint (V2 width height)
       color
-        | canCast ability Interrupt_Don't world = V4 0 255 0 255
-        | canCast ability Interrupt_Do world = V4 255 255 0 255
+        | isJust $ canCast ability Interrupt_Don't world = V4 0 255 0 255
+        | isJust $ canCast ability Interrupt_Do world = V4 255 255 0 255
         | otherwise = V4 255 0 0 255
     rendererDrawColor rdr $= color
     fillRect rdr (Just rect)
