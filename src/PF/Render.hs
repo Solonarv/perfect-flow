@@ -12,6 +12,7 @@ import SDL
 import Control.Monad
 import qualified Data.Text as Text
 import qualified SDL.Font as Font
+import Control.Lens
 
 
 
@@ -79,6 +80,48 @@ drawAbilities = do
 
 
 drawCasting :: AppM ()
-drawCasting = pure ()
+drawCasting = do
+  world <- liftIO . readIORef =<< asks (.world)
+  for_ world.currently_casting \casting -> do
+    rdr <- asks (.renderer)
+    let
+      ability = casting.ability
+      width = 240
+      height = 60
+      basePoint = P (V2 200 380)
+      color = V4 0 255 0 255
+      progress
+        | casting.progress < 0 = ability.channel_time + casting.progress
+        | otherwise = casting.progress
+      max_progress
+        | casting.progress < 0 = ability.channel_time
+        | otherwise = max 1 ability.cast_time
+      fillWidth = round (fromIntegral width * fromIntegral progress / fromIntegral max_progress :: Rational)
+    rendererDrawColor rdr $= V4 0 255 0 255
+    fillRect rdr (Just $ Rectangle basePoint (V2 fillWidth height))
+    rendererDrawColor rdr $= V4 0 0 0 255
+    drawRect rdr (Just $ Rectangle basePoint (V2 width height))
+    let label = ability.name <> " " <> Text.pack (show progress <> "/" <> show max_progress)
+    font <- asks (.opensans12)
+    labelSurf <- Font.solid font (V4 60 127 240 255) label
+    labelTex <- createTextureFromSurface rdr labelSurf
+    labelSize <- surfaceDimensions labelSurf
+    copy rdr labelTex Nothing (Just $ Rectangle basePoint labelSize)
+    pure ()
+
 drawDamage :: AppM ()
-drawDamage = pure ()
+drawDamage = do
+  world <- liftIO . readIORef =<< asks (.world)
+  rdr <- asks (.renderer)
+  let label = "DAMAGE: " <> Text.pack (show world.damage)
+            <> "  DPS: " <> Text.pack (show $ fromIntegral world.damage / fromIntegral world.tick)
+            <> "  TICK: " <> Text.pack (show world.tick)
+      color = V4 80 80 0 255
+  font <- asks (.opensans12)
+  labelSurf <- Font.solid font color label
+  labelTex <- createTextureFromSurface rdr labelSurf
+  labelSize <- surfaceDimensions labelSurf
+  let
+      baseX = 320 - labelSize^._x `div` 2
+      basePoint = P (V2 baseX 20)
+  copy rdr labelTex Nothing (Just $ Rectangle basePoint labelSize)

@@ -72,7 +72,7 @@ step = stepPendingEffects . stepCasting . stepTime
 
 stepTime :: World -> World
 stepTime w = w{ tick = w.tick+1, currently_casting = fmap stepCC w.currently_casting}
-  where stepCC cc = cc{progress = cc.progress + signum(cc.progress)}
+  where stepCC cc = cc{progress = if cc.progress<0 then cc.progress-1 else cc.progress+1}
 
 stepCasting :: World -> World
 stepCasting world

@@ -42,17 +42,20 @@ import Misc.AABB
 import PF.AppM
 import Control.Monad.Reader
 import Data.Word
-import PF.Simulation (emptyWorld)
+import PF.Simulation
 
 import PF.Levels.ArcaneWizard qualified
 import PF.Render
+import Data.IORef
+import Data.Foldable
+import Data.Maybe
 
 pfMain :: IO ()
 pfMain = do
   putStrLn "Initializing SDL2..."
   initializeAll
   Font.initialize
-  let ogl = defaultOpenGL { glProfile = Core Normal 3 3 }
+  let ogl = defaultOpenGL { glProfile = Core SDL.Normal 3 3 }
   let wincfg = defaultWindow
         { windowGraphicsContext = OpenGLContext ogl
         , windowResizable = True
@@ -95,6 +98,11 @@ app = do
     evts <- pollEvents
     let shouldQuit = any isQuitEvent evts
 
+    let instructions = mapMaybe parseEvent evts
+    unless (null instructions) do
+      liftIO $ print instructions
+    for_ instructions doInstruction
+
     -- draw some stuff
     render
 
@@ -109,6 +117,42 @@ isQuitEvent e = case eventPayload e of
     && keysymKeycode (keyboardEventKeysym ke) == KeycodeQ
   QuitEvent -> True
   _ -> False
+
+data Instruction = Cast Int Bool | StepTime
+  deriving (Eq, Ord, Show)
+
+parseEvent :: Event -> Maybe Instruction
+parseEvent = \case
+  Event{eventPayload = KeyboardEvent ke}
+    | ke.keyboardEventKeyMotion == Pressed
+    , let keycode = ke.keyboardEventKeysym.keysymKeycode
+    -> if
+        | keycode == KeycodeSpace -> Just StepTime
+        | keycode >= Keycode0 && keycode <= Keycode9
+        , i <- if keycode == Keycode0
+            then 10
+            else fromIntegral $ keycode.unwrapKeycode - (Keycode0).unwrapKeycode - 1
+        , mod <- ke.keyboardEventKeysym.keysymModifier
+        , let force = mod.keyModifierLeftShift || mod.keyModifierRightShift
+        -> Just $ Cast i force
+        | otherwise -> Nothing
+  _ -> Nothing
+
+doInstruction :: Instruction -> AppM ()
+doInstruction = \case
+  StepTime -> do
+    world <- asks (.world)
+    liftIO $ modifyIORef world step
+  Cast i force -> do
+    worldRef <- asks (.world)
+    world <- liftIO $ readIORef worldRef
+    let ability = case drop i (toList world.abilities) of
+          (x:_) -> Just x
+          _ -> Nothing
+        int = if force then Interrupt_Do else Interrupt_Don't
+    for_ ability \ability ->
+      liftIO $ modifyIORef worldRef (cast ability.name int)
+
 
 aabb2rect :: AABB V2 CInt -> Rectangle CInt
 aabb2rect (AABB lo hi) = Rectangle lo (hi .-. lo)
