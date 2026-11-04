@@ -10,10 +10,12 @@ import Data.Foldable
 import Data.Maybe
 import Debug.Trace (traceM, traceShow)
 import qualified Data.Text as Text
+import Data.Ratio
 
 data Resource = Resource
   { name :: Text
   , current, min, max :: Int
+  , regen :: Ratio Int
   }
   deriving (Eq, Ord, Show)
 
@@ -73,8 +75,19 @@ step :: World -> World
 step = stepPendingEffects . stepCasting . stepTime
 
 stepTime :: World -> World
-stepTime w = w{ tick = w.tick+1, currently_casting = fmap stepCC w.currently_casting}
-  where stepCC cc = cc{progress = if cc.progress<0 then cc.progress-1 else cc.progress+1}
+stepTime w = w
+  { tick = w.tick+1
+  , currently_casting = fmap stepCC w.currently_casting
+  , resources = fmap (stepRegen w.tick) w.resources
+  }
+  where
+    stepCC cc = cc{progress = if cc.progress<0 then cc.progress-1 else cc.progress+1}
+    stepRegen tick res
+      | res.regen == 0 = res
+      | tick `mod` denominator (res.regen) == 0
+      = res{ current = clamp (res.min, res.max) $ res.current + numerator (res.regen) }
+      | otherwise = res
+
 
 stepCasting :: World -> World
 stepCasting world

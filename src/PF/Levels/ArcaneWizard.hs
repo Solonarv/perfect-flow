@@ -5,11 +5,12 @@ import PF.Simulation
 import PF.Simulation.Notation
 
 initWorld :: World
-initWorld = emptyWorld
+initWorld = sharedCD "gcd" $ emptyWorld
   { resources = byName
     [ Resource
       { name = "mana"
       , min = 0, max = 1000, current = 1000
+      , regen = 5 / 60
       }
     , chargeResource "evocation-charges" 20
     , (chargeResource "blast0" 1){current=1}
@@ -26,7 +27,7 @@ initWorld = emptyWorld
       , on_cast_start = reset_blast
       , on_cast_finish = []
       , on_channel_tick = [Effect_GetResource "mana" 120]
-      , cost = [Cost "evocation-charges" 20 False]
+      , cost = [_GCD, Cost "evocation-charges" 20 False]
       , cost_tick = []
       }
     , Ability
@@ -36,7 +37,7 @@ initWorld = emptyWorld
       , on_cast_start = reset_blast
       , on_cast_finish = [Effect_Damage 180]
       , on_channel_tick = []
-      , cost = [Cost "mana" 10 False]
+      , cost = [_GCD, Cost "mana" 10 False]
       , cost_tick = []
       }
     ] ++ [ Ability
@@ -51,7 +52,8 @@ initWorld = emptyWorld
         ] ++ [Effect_GetResource this (-1) | this /= "blast4"]
       , on_channel_tick = []
       , cost =
-        [ Cost this 1 True
+        [_GCD
+        , Cost this 1 True
         , Cost "mana" mana False
         ]
       , cost_tick = []
@@ -68,3 +70,6 @@ initWorld = emptyWorld
 
 reset_blast :: [Effect]
 reset_blast = [Effect_GetResource "blast0" 1] ++ [Effect_GetResource b (-1) | b <- ["blast1", "blast2", "blast3", "blast4"]]
+
+_GCD :: Cost
+_GCD = cdCost "gcd" 60

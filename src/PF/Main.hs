@@ -108,13 +108,14 @@ app = do
 
     -- draw some stuff
     render
-
     present rdr
+
     -- loop
     end <- time
     let elapsed = end - start
         remaining = 1e-3*(16+2/3) - elapsed
-    liftIO . threadDelay $ floor $ remaining * 1e6
+    when (remaining > 0) do
+      liftIO . threadDelay $ floor $ remaining * 1e6
     unless shouldQuit loop
 
 isQuitEvent :: Event -> Bool
