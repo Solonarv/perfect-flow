@@ -11,6 +11,8 @@ import Data.Maybe
 import Debug.Trace (traceM, traceShow)
 import qualified Data.Text as Text
 import Data.Ratio
+import Data.Set (Set)
+import Data.Monoid
 
 data Resource = Resource
   { name :: Text
@@ -42,8 +44,42 @@ data Cost = Cost
   }
   deriving (Eq, Ord, Show)
 
-data Effect = Effect_Damage Int | Effect_GetResource Text Int
+data Effect = Effect_Damage Int | Effect_GetResource Text Int | ApplyBuff Buff
   deriving (Eq, Ord, Show)
+
+data ModifierClass = Mod_AddBase | Mod_Increased | Mod_More | Mod_AddFinal
+  deriving (Eq, Ord, Show)
+
+data ModifierWhat = Mod_Damage | Mod_Cost Text | Mod_CastSpeed | Mod_Max | Mod_Regen | Mod_Gained
+  deriving (Eq, Ord, Show)
+
+data Modifier = Modifier
+  { name :: Text
+  , targets :: Set Text
+  , class_ :: ModifierClass
+  , what :: ModifierWhat
+  , magnitude :: Ratio Int
+  }
+  deriving (Eq, Ord, Show)
+
+data BuffStackingMode
+  = Buff_Discard      -- ^ Newer buff isn't applied
+  | Buff_Override     -- ^ Older buff is removed
+  | Buff_Refresh      -- ^ Older buff stays, duration reset
+  | Buff_Separate     -- ^ Both buffs stay
+  | Buff_RefreshStack -- ^ Both buffs stay, older buff's duration reset
+  deriving (Eq, Ord, Show)
+
+data Buff = Buff
+  { name :: Text
+  , stackingMode :: BuffStackingMode
+  , original_duration, remaining :: Int
+  , on_apply, on_tick, on_expire, on_remove :: [Effect]
+  , tick_time :: Int
+  , modifiers :: [Modifier]
+  }
+  deriving (Eq, Ord, Show)
+
 
 data CurrentCast = CurrentCast
   { ability :: Ability
@@ -56,6 +92,7 @@ data World = World
   , abilities :: Map Text Ability
   , currently_casting :: Maybe CurrentCast
   , pending_effects :: [Effect]
+  , buffs :: [Buff]
   , tick :: Int
   , damage :: Int
   }
@@ -67,6 +104,7 @@ emptyWorld = World
   , abilities = Map.empty
   , currently_casting = Nothing
   , pending_effects = []
+  , buffs = []
   , tick = 0
   , damage = 0
   }
@@ -129,6 +167,7 @@ applyEffect :: Effect -> World -> World
 applyEffect = \cases
   (Effect_Damage amount) w -> w{damage = w.damage + amount}
   (Effect_GetResource which amount) w -> w{resources = Map.adjust (getResource amount) which w.resources}
+  (ApplyBuff buff) w -> let (buffs, triggers) = applyBuff w buff in w{buffs=buffs, pending_effects = triggers ++ w.pending_effects}
 
 getResource :: Int -> Resource -> Resource
 getResource amount res = res{current = clamp (res.min, res.max) (res.current + amount)}
@@ -171,3 +210,17 @@ expend resources cost = do
   pure if cost.phantom
     then resources
     else Map.insert cost.target res{current = newAmount} resources
+
+applyBuff :: World -> Buff -> ([Buff], [Effect])
+applyBuff w b = error "TODO"
+
+-- | Apply all modifiers to the given value, respecting modifier class.
+executeModifiers :: [Modifier] -> Ratio Int -> Ratio Int
+executeModifiers mods base = let
+  mod2vec mod = case mod.class_ of
+    Mod_AddBase -> (Sum mod.magnitude, mempty, mempty, mempty)
+    Mod_Increased -> (mempty, Sum mod.magnitude, mempty, mempty)
+    Mod_More -> (mempty, mempty, 1 + Product mod.magnitude, mempty)
+    Mod_AddFinal -> (mempty, mempty, mempty, Sum mod.magnitude)
+  (addBase, increased, more, addFinal) = foldMap mod2vec mods
+  in (base + getSum addBase) * (1 + getSum increased) * getProduct more + getSum addFinal
