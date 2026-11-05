@@ -9,12 +9,13 @@ import qualified Data.Map.Strict as Map
 import Data.Ord (clamp)
 import Data.Foldable
 import Data.Maybe
-import Debug.Trace (traceM, traceShow)
+import Debug.Trace (traceM, traceShow, trace)
 import qualified Data.Text as Text
 import Data.Ratio
 import Data.Set (Set)
 import Data.Monoid
 import qualified Data.Set as Set
+import Data.List
 
 newtype Number = Number { value :: Ratio Int }
   deriving newtype (Eq, Ord, Show, Num, Fractional, Real, RealFrac)
@@ -52,10 +53,16 @@ data Cost = Cost
   }
   deriving (Eq, Ord, Show)
 
-data Effect = Effect_Damage Number | Effect_GetResource Text Number | Effect_ApplyBuff Buff
+data Effect
+  = Effect_Damage Number
+  | Effect_GetResource Text Number
+  | Effect_ApplyBuff Buff
+  | Effect_RemoveBuff_Oldest Text
+  | Effect_RemoveBuff_Newest Text
+  | Effect_RemoveBuff_All Text
   deriving (Eq, Ord, Show)
 
-data ModifierClass = Mod_AddBase | Mod_Increased | Mod_More | Mod_AddFinal
+data ModifierClass = Mod_AddBase | Mod_Increased | Mod_More | Mod_Increased_Invert | Mod_AddFinal
   deriving (Eq, Ord, Show)
 
 data ModifierWhat = Mod_Damage | Mod_Cost Text | Mod_CastSpeed | Mod_Max | Mod_Regen | Mod_Gained Text
@@ -70,12 +77,12 @@ data Modifier = Modifier
   }
   deriving (Eq, Ord, Show)
 
+-- | What to do when the stack limit is already reached, but an effect
+-- wants to add another buff of the same name.
 data BuffStackingMode
-  = Buff_Discard      -- ^ Newer buff isn't applied
-  | Buff_Override     -- ^ Older buff is removed
-  | Buff_Refresh      -- ^ Older buff stays, duration reset
-  | Buff_Separate     -- ^ Both buffs stay
-  | Buff_RefreshStack -- ^ Both buffs stay, older buff's duration reset
+  = Buff_Discard      -- ^ New buff isn't applied
+  | Buff_Override     -- ^ Oldest buff is removed
+  | Buff_Refresh      -- ^ Older buffs stay, duration reset
   deriving (Eq, Ord, Show)
 
 data Buff = Buff
@@ -121,13 +128,14 @@ emptyWorld = World
   }
 
 step :: World -> World
-step = stepPendingEffects . stepCasting . stepTime
+step = stepPendingEffects . stepCasting . stepBuffs . stepTime
 
 stepTime :: World -> World
 stepTime w = w
   { tick = w.tick+1
   , currently_casting = fmap stepCC w.currently_casting
   , resources = fmap (stepRegen w.tick) w.resources
+  , buffs = fmap (\b -> b{remaining = b.remaining-1}) w.buffs
   }
   where
     stepCC cc = let
@@ -138,6 +146,13 @@ stepTime w = w
       | otherwise
       = res{ current = clamp (res.min, res.max) $ res.current + res.regen }
 
+stepBuffs :: World -> World
+stepBuffs w = let
+  (removed, remaining) = partition (\b -> b.remaining < 0) w.buffs
+  ticking = filter shouldTick remaining
+  shouldTick buff = buff.tick_time > 0 && abs (snd $ properFraction $ buff.remaining / buff.tick_time) < 1
+  in flip (foldr (\b w' -> addEffects b.name b.on_expire w')) removed
+  $ foldr ((\b w' -> addEffects b.name b.on_tick w')) w{buffs = remaining} ticking
 
 stepCasting :: World -> World
 stepCasting world
@@ -155,16 +170,18 @@ stepCasting world
       && casting.progress >= casting.ability.channel_time) do
       modify stopCasting
     -- channel tick?
+    -- TODO fix channel ticks
     let targetChannelTicks = floor (casting.progress / max 1 casting.ability.channel_tick)
     when (isChannelStyle casting.ability.cast_style && targetChannelTicks > casting.channel_ticks) do
       w <- get
       let ticksToDo = targetChannelTicks - casting.channel_ticks
           boostedCost = concat $ replicate ticksToDo casting.ability.cost_tick
-      case payCosts boostedCost w of
+      case payCosts casting.ability.name boostedCost w of
         Nothing -> modify stopCasting
         Just paid -> do
           modify $ \w->w{resources=paid}
           modify $ addEffects casting.ability.name (concat $ replicate ticksToDo casting.ability.on_channel_tick)
+          modify $ \w ->w{currently_casting = Just casting{channel_ticks = targetChannelTicks}}
 
 
   | otherwise = world
@@ -189,7 +206,17 @@ applyEffect :: Effect -> World -> World
 applyEffect = \cases
   (Effect_Damage amount) w -> w{damage = w.damage + floor (amount.value)}
   (Effect_GetResource which amount) w -> w{resources = Map.adjust (getResource amount) which w.resources}
-  (Effect_ApplyBuff buff) w -> let (buffs, triggers) = applyBuff w buff in addEffects buff.name triggers w{buffs=buffs}
+  (Effect_ApplyBuff buff) w -> applyBuff buff w
+  (Effect_RemoveBuff_Newest which) w
+    | (matched, others) <- partition (\b -> b.name == which) w.buffs
+    , (newest:rest) <- matched -> addEffects newest.name newest.on_remove w{buffs = rest ++ others}
+  (Effect_RemoveBuff_Oldest which) w
+    | (matched, others) <- partition (\b -> b.name == which) w.buffs
+    , Just (rest, oldest) <- unsnoc matched
+    -> addEffects oldest.name oldest.on_remove w{buffs = rest ++ others}
+  (Effect_RemoveBuff_All which) w
+    | (removed, others) <- partition (\b -> b.name == which) w.buffs
+     -> addEffects which (concatMap (.on_remove) removed) w{buffs = others}
 
 getResource :: Number -> Resource -> Resource
 getResource amount res = res{current = clamp (res.min, res.max) (res.current + amount)}
@@ -214,15 +241,15 @@ canCast ability int w
   | isNothing w.currently_casting
     || ability.cast_style == Free
     || int == Interrupt_Do
-  , Just paid <- payCosts ability.cost w
+  , Just paid <- payCosts ability.name ability.cost w
   = Just paid
   | otherwise = Nothing
 
 stopCasting :: World -> World
 stopCasting w = w{currently_casting = Nothing}
 
-payCosts :: [Cost] -> World -> Maybe (Map Text Resource)
-payCosts costs w = foldM expend w.resources costs
+payCosts :: Text -> [Cost] -> World -> Maybe (Map Text Resource)
+payCosts name costs w = foldM expend w.resources (fmap (calculateModifiedCost name w.buffs) costs)
 
 expend :: Map Text Resource -> Cost -> Maybe (Map Text Resource)
 expend resources cost = do
@@ -233,19 +260,32 @@ expend resources cost = do
     then resources
     else Map.insert cost.target res{current = newAmount} resources
 
-applyBuff :: World -> Buff -> ([Buff], [Effect])
-applyBuff w b = error "TODO"
+applyBuff :: Buff -> World -> World
+applyBuff buff w = let
+  (existing, others) = partition (\b -> b.name == buff.name) w.buffs
+  (these, triggers) = if
+    | length existing < buff.maxStacks
+    -> (buff:existing, buff.on_apply)
+    | Buff_Discard <- buff.stackingMode -> (existing, [])
+    | Buff_Override <- buff.stackingMode
+    , Just (rest, removed) <- unsnoc existing
+    -> (buff:rest, buff.on_apply ++ removed.on_remove)
+    | Buff_Refresh <- buff.stackingMode
+    , refresh <- \b -> b{remaining = max b.remaining buff.remaining}
+    -> (refresh <$> existing, buff.on_apply)
+  in addEffects buff.name triggers w{buffs = these ++ others}
 
 -- | Apply all modifiers to the given value, respecting modifier class.
 executeModifiers :: [Modifier] -> Number -> Number
 executeModifiers mods base = let
   mod2vec mod = case mod.class_ of
-    Mod_AddBase -> (Sum mod.magnitude, mempty, mempty, mempty)
-    Mod_Increased -> (mempty, Sum mod.magnitude, mempty, mempty)
-    Mod_More -> (mempty, mempty, 1 + Product mod.magnitude, mempty)
-    Mod_AddFinal -> (mempty, mempty, mempty, Sum mod.magnitude)
-  (addBase, increased, more, addFinal) = foldMap mod2vec mods
-  in (base + getSum addBase) * (1 + getSum increased) * getProduct more + getSum addFinal
+    Mod_AddBase -> (Sum mod.magnitude, mempty, mempty, mempty, mempty)
+    Mod_Increased -> (mempty, Sum mod.magnitude, mempty, mempty, mempty)
+    Mod_More -> (mempty, mempty, 1 + Product mod.magnitude, mempty, mempty)
+    Mod_Increased_Invert -> (mempty, mempty, mempty, Sum mod.magnitude, mempty)
+    Mod_AddFinal -> (mempty, mempty, mempty, mempty, Sum mod.magnitude)
+  (addBase, increased, more, increased_invert, addFinal) = foldMap mod2vec mods
+  in (base + getSum addBase) * (1 + getSum increased) / (1 - getSum increased_invert) * getProduct more + getSum addFinal
 
 collectModifiersFor :: Text -> ModifierWhat -> [Buff] -> [Modifier]
 collectModifiersFor name what buffs = 
@@ -261,3 +301,6 @@ calculate name what buffs base = executeModifiers (collectModifiersFor name what
 
 calculateInt :: Text -> ModifierWhat -> [Buff] -> Int -> Int
 calculateInt t w b = floor . calculate t w b . int2Num
+
+calculateModifiedCost :: Text -> [Buff] -> Cost -> Cost
+calculateModifiedCost name buffs cost = cost{amount = calculate name (Mod_Cost cost.target) buffs cost.amount}

@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, OverloadedLists #-}
 module PF.Levels.ArcaneWizard where
 
 import PF.Simulation
@@ -13,18 +13,13 @@ initWorld = sharedCD "gcd" $ emptyWorld
       , regen = 5 / 60
       }
     , chargeResource "evocation-charges" 20
-    , (chargeResource "blast0" 1){current=1}
-    , chargeResource "blast1" 1
-    , chargeResource "blast2" 1
-    , chargeResource "blast3" 1
-    , chargeResource "blast4" 1
     ]
   , abilities = byName $
     [ Ability
       { name = "evocation"
       , cast_style = Channel
       , cast_time = 0, channel_time = 600, channel_tick = 120
-      , on_cast_start = reset_blast
+      , on_cast_start = [Effect_RemoveBuff_All "arcane-blast"]
       , on_cast_finish = []
       , on_channel_tick = [Effect_GetResource "mana" 120]
       , cost = [_GCD, Cost "evocation-charges" 20 False]
@@ -34,42 +29,72 @@ initWorld = sharedCD "gcd" $ emptyWorld
       { name = "arcane-barrage"
       , cast_style = Instant
       , cast_time = 0, channel_time = 0, channel_tick = 0
-      , on_cast_start = reset_blast
+      , on_cast_start = [Effect_RemoveBuff_All "arcane-blast"]
       , on_cast_finish = [Effect_Damage 180]
       , on_channel_tick = []
       , cost = [_GCD, Cost "mana" 10 False]
       , cost_tick = []
       }
-    ] ++ [ Ability
-      { name = this
+    , Ability
+      { name = "arcane-blast"
       , cast_style = Normal
-      , cast_time = 75, channel_time = 0, channel_tick = 0
+      , cast_time = 90, channel_time = 0, channel_tick = 0
       , on_cast_start = []
       , on_cast_finish =
-        [ Effect_Damage damage
-        , Effect_GetResource next 1
+        [ Effect_Damage 100
         , Effect_GetResource "evocation-charges" 1
-        ] ++ [Effect_GetResource this (-1) | this /= "blast4"]
+        , Effect_ApplyBuff Buff
+          { name = "arcane-blast"
+          , stackingMode = Buff_Refresh
+          , maxStacks = 4
+          , original_duration = 3600
+          , remaining = 3600
+          , on_apply = []
+          , on_tick = []
+          , on_expire = []
+          , on_remove = []
+          , tick_time = 0
+          , modifiers =
+            [ Modifier
+              { name = "arcane-blast-damage"
+              , targets = ["arcane-blast", "arcane-barrage"]
+              , class_ = Mod_Increased
+              , what = Mod_Damage
+              , magnitude = 0.4
+              }
+            , Modifier
+              { name = "arcane-blast-cost"
+              , targets = ["arcane-blast"]
+              , class_ = Mod_AddBase
+              , what = Mod_Cost "mana"
+              , magnitude = 8
+              }
+            , Modifier
+              { name = "arcane-blast-speed"
+              , targets = ["arcane-blast"]
+              , class_ = Mod_Increased
+              , what = Mod_CastSpeed
+              , magnitude = 0.3
+              }
+            , Modifier
+              { name = "arcane-blast-gcd"
+              , targets = ["arcane-blast"]
+              , class_ = Mod_Increased_Invert
+              , what = Mod_Cost "gcd"
+              , magnitude = -0.3
+              }
+            ]
+          }
+        ]
       , on_channel_tick = []
       , cost =
         [_GCD
-        , Cost this 1 True
-        , Cost "mana" mana False
+        , Cost "mana" 12 False
         ]
       , cost_tick = []
       }
-      | (this, next, damage, mana) <-
-      [ ("blast0", "blast1", 100, 8)
-      , ("blast1", "blast2", 140, 12)
-      , ("blast2", "blast3", 190, 16)
-      , ("blast3", "blast4", 250, 20)
-      , ("blast4", "dummy", 310, 24)
-      ]
     ]
   }
-
-reset_blast :: [Effect]
-reset_blast = [Effect_GetResource "blast0" 1] ++ [Effect_GetResource b (-1) | b <- ["blast1", "blast2", "blast3", "blast4"]]
 
 _GCD :: Cost
 _GCD = cdCost "gcd" 60

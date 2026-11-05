@@ -101,8 +101,8 @@ app = do
     let shouldQuit = any isQuitEvent evts
 
     let instructions = mapMaybe parseEvent evts
-    unless (null instructions) do
-      liftIO $ print instructions
+    -- unless (null instructions) do
+    --   liftIO $ print instructions
     doInstruction StepTime
     for_ instructions doInstruction
 

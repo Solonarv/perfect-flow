@@ -26,6 +26,7 @@ render = do
   drawAbilities
   drawCasting
   drawDamage
+  drawBuffs
 
 drawResources :: AppM ()
 drawResources = do
@@ -124,3 +125,22 @@ drawDamage = do
       baseX = 320 - labelSize^._x `div` 2
       basePoint = P (V2 baseX 20)
   copy rdr labelTex Nothing (Just $ Rectangle basePoint labelSize)
+
+drawBuffs :: AppM ()
+drawBuffs = do
+  world <- liftIO . readIORef =<< asks (.world)
+  rdr <- asks (.renderer)
+  for_ (zip [0..] world.buffs) \(i, buff) -> do
+    let duration_ticks = buff.remaining
+        label = buff.name <> "  " <> Text.pack (show $ round $ duration_ticks)
+        color = V4 30 120 20 255
+    font <- asks (.opensans12)
+    labelSurf <- Font.solid font color label
+    labelTex <- createTextureFromSurface rdr labelSurf
+    labelSize <- surfaceDimensions labelSurf
+    let
+      width, height :: CInt
+      width = 180
+      height = 40
+      basePoint = P (V2 220 (50 + 30*i))
+    copy rdr labelTex Nothing (Just $ Rectangle basePoint labelSize)
