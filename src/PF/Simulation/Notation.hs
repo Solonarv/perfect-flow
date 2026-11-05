@@ -11,7 +11,7 @@ byName :: (HasField "name" r n, Ord n) => [r] -> Map n r
 byName rs = Map.fromList [(r.name, r) | r <- rs]
 
 chargeResource :: Text -> Int -> Resource
-chargeResource name max = Resource {name = name, max = max, min = 0, current = 0, regen = 0}
+chargeResource name max = Resource {name = name, max = int2Num max, min = 0, current = 0, regen = 0}
 
 sharedCD :: Text -> World -> World
 sharedCD cdName w = case maxCd of
@@ -26,5 +26,5 @@ sharedCD cdName w = case maxCd of
       , let cd = - cost.amount
       ]
 
-cdCost :: Text -> Int -> Cost
+cdCost :: Text -> Number -> Cost
 cdCost cdName delay = Cost{target = cdName, amount = -delay, phantom = False}

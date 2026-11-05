@@ -36,9 +36,9 @@ drawResources = do
       width, height, fillWidth :: CInt
       width = 200
       height = 40
-      fillLevel = fromIntegral res.current / fromIntegral res.max :: Rational
+      fillLevel = res.current / res.max
       fillWidth = round (fromIntegral width * fillLevel)
-      minFillWidth = round (fromIntegral width * fromIntegral res.min / fromIntegral res.max :: Rational)
+      minFillWidth = round (fromIntegral width * res.min / res.max)
       basePoint = P (V2 420 (10 + 50*i))
     rendererDrawColor rdr $= V4 0 255 0 255
     fillRect rdr (Just $ Rectangle basePoint (V2 fillWidth height))
@@ -47,7 +47,7 @@ drawResources = do
       fillRect rdr (Just $ Rectangle basePoint (V2 minFillWidth height))
     rendererDrawColor rdr $= V4 0 0 0 255
     drawRect rdr (Just $ Rectangle basePoint (V2 width height))
-    let label = res.name <> " " <> Text.pack (show res.current <> "/" <> show res.max)
+    let label = res.name <> " " <> Text.pack (show (floor res.current) <> "/" <> show (floor res.max))
     font <- asks (.opensans12)
     labelSurf <- Font.solid font (V4 60 127 240 255) label
     labelTex <- createTextureFromSurface rdr labelSurf
@@ -91,18 +91,16 @@ drawCasting = do
       height = 60
       basePoint = P (V2 200 380)
       color = V4 0 255 0 255
-      progress
-        | casting.progress < 0 = ability.channel_time + casting.progress
-        | otherwise = casting.progress
+      progress = casting.progress
       max_progress
-        | casting.progress < 0 = ability.channel_time
+        | casting.channeling = ability.channel_time
         | otherwise = max 1 ability.cast_time
-      fillWidth = round (fromIntegral width * fromIntegral progress / fromIntegral max_progress :: Rational)
+      fillWidth = round (fromIntegral width * progress / max_progress)
     rendererDrawColor rdr $= V4 0 255 0 255
     fillRect rdr (Just $ Rectangle basePoint (V2 fillWidth height))
     rendererDrawColor rdr $= V4 0 0 0 255
     drawRect rdr (Just $ Rectangle basePoint (V2 width height))
-    let label = ability.name <> " " <> Text.pack (show progress <> "/" <> show max_progress)
+    let label = ability.name <> " " <> Text.pack (show (floor progress) <> "/" <> show (floor max_progress))
     font <- asks (.opensans12)
     labelSurf <- Font.solid font (V4 60 127 240 255) label
     labelTex <- createTextureFromSurface rdr labelSurf
