@@ -50,6 +50,7 @@ import Data.IORef
 import Data.Foldable
 import Data.Maybe
 import Control.Concurrent (threadDelay)
+import PF.Random
 
 pfMain :: IO ()
 pfMain = do
@@ -86,6 +87,11 @@ nextColor Blue = Red
 
 app :: AppM ()
 app = do
+  ref <- asks (.world)
+  liftIO do
+    rng <- initStdGen
+    liftIO $ putStrLn $ "RNG Seed: " <> show rng
+    liftIO $ modifyIORef' ref \w->w{rng=rng}
   rdr <- asks (.renderer)
 
   let red = V4 255 0 0 255

@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE BangPatterns #-}
 module PF.Simulation where
 
 import Data.Text (Text)
@@ -9,19 +10,15 @@ import qualified Data.Map.Strict as Map
 import Data.Ord (clamp)
 import Data.Foldable
 import Data.Maybe
-import Debug.Trace (traceM, traceShow, trace)
+import Debug.Trace (traceM, traceShow, trace, traceShowId)
 import qualified Data.Text as Text
-import Data.Ratio
 import Data.Set (Set)
 import Data.Monoid
 import qualified Data.Set as Set
 import Data.List
 
-newtype Number = Number { value :: Ratio Int }
-  deriving newtype (Eq, Ord, Show, Num, Fractional, Real, RealFrac)
-
-int2Num :: Int -> Number
-int2Num x = Number (x%1)
+import PF.Number
+import PF.Random
 
 data Resource = Resource
   { name :: Text
@@ -60,6 +57,7 @@ data Effect
   | Effect_RemoveBuff_Oldest Text
   | Effect_RemoveBuff_Newest Text
   | Effect_RemoveBuff_All Text
+  | Effect_Randomly Text Number Effect
   deriving (Eq, Ord, Show)
 
 data ModifierClass = Mod_AddBase | Mod_Increased | Mod_More | Mod_Increased_Invert | Mod_AddFinal
@@ -100,7 +98,7 @@ data Buff = Buff
 data CurrentCast = CurrentCast
   { ability :: Ability
   , progress :: Number
-  , channel_ticks :: Int
+  , nextChannelTick :: Number
   , channeling :: Bool
   }
   deriving (Eq, Ord, Show)
@@ -113,8 +111,9 @@ data World = World
   , buffs :: [Buff]
   , tick :: Int
   , damage :: Int
+  , rng :: StdGen
   }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Show)
 
 emptyWorld :: World
 emptyWorld = World
@@ -125,6 +124,7 @@ emptyWorld = World
   , buffs = []
   , tick = 0
   , damage = 0
+  , rng = mkStdGen 0
   }
 
 step :: World -> World
@@ -159,29 +159,26 @@ stepCasting world
   | Just casting <- world.currently_casting
   = flip execState world do
     -- cast done?
-    when (casting.progress >= casting.ability.cast_time) do
+    when (casting.progress >= casting.ability.cast_time  && not casting.channeling) do
       modify $ addEffects casting.ability.name casting.ability.on_cast_finish
       -- traceM $ "finished casting "<> Text.unpack casting.ability.name <> ", adding effects " <> show casting.ability.on_cast_finish
       if isChannelStyle casting.ability.cast_style
-        then modify \w->w{currently_casting = Just casting{channeling= True}}
+        then modify \w->w{currently_casting = Just casting{channeling = True, nextChannelTick = casting.ability.channel_tick}}
         else modify stopCasting
     -- channel done?
-    when (isChannelStyle casting.ability.cast_style
+    when (casting.channeling
       && casting.progress >= casting.ability.channel_time) do
       modify stopCasting
     -- channel tick?
     -- TODO fix channel ticks
-    let targetChannelTicks = floor (casting.progress / max 1 casting.ability.channel_tick)
-    when (isChannelStyle casting.ability.cast_style && targetChannelTicks > casting.channel_ticks) do
+    when (casting.channeling && casting.progress >= casting.nextChannelTick) do
       w <- get
-      let ticksToDo = targetChannelTicks - casting.channel_ticks
-          boostedCost = concat $ replicate ticksToDo casting.ability.cost_tick
-      case payCosts casting.ability.name boostedCost w of
+      case payCosts casting.ability.name casting.ability.cost_tick w of
         Nothing -> modify stopCasting
         Just paid -> do
           modify $ \w->w{resources=paid}
-          modify $ addEffects casting.ability.name (concat $ replicate ticksToDo casting.ability.on_channel_tick)
-          modify $ \w ->w{currently_casting = Just casting{channel_ticks = targetChannelTicks}}
+          modify $ addEffects casting.ability.name casting.ability.on_channel_tick
+          modify $ \w ->w{currently_casting = Just casting{nextChannelTick = casting.nextChannelTick + casting.ability.channel_tick}}
 
 
   | otherwise = world
@@ -216,7 +213,11 @@ applyEffect = \cases
     -> addEffects oldest.name oldest.on_remove w{buffs = rest ++ others}
   (Effect_RemoveBuff_All which) w
     | (removed, others) <- partition (\b -> b.name == which) w.buffs
-     -> addEffects which (concatMap (.on_remove) removed) w{buffs = others}
+    -> addEffects which (concatMap (.on_remove) removed) w{buffs = others}
+  (Effect_Randomly source p what) w
+    | (cond, rng) <- rollChance p w.rng
+    , let effect = [what | cond]
+    -> addEffects source effect w{rng=rng}
 
 getResource :: Number -> Resource -> Resource
 getResource amount res = res{current = clamp (res.min, res.max) (res.current + amount)}
@@ -231,7 +232,7 @@ cast what int w
   , w <- w{resources = paid}
   , w <- if ability.cast_style == Free
           then w
-          else w{currently_casting = Just (CurrentCast ability 0 w.tick False)}
+          else w{currently_casting = Just (CurrentCast ability 0 0 False)}
   , w <- addEffects ability.name (ability.on_cast_start) w
   = stepPendingEffects w
   | otherwise = w
