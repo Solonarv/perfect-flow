@@ -55,6 +55,7 @@ data World = World
   , tick :: Int
   , damage :: Int
   , rng :: StdGen
+  , procState :: Map Text Number
   }
   deriving (Eq, Show)
 
@@ -68,6 +69,7 @@ hydrateWorld rng proto = World
   , tick  = 0
   , damage = 0
   , resources = Map.fromList [(r.name, hydrateResource r) | r <- proto.resources]
+  , procState = Map.empty
   }
 
 hydrateResource :: Resource -> LiveResource
@@ -167,9 +169,9 @@ applyEffect = \cases
     | (removed, others) <- partition (\b -> nameOf b == which) w.buffs
     -> addEffects which (concatMap (.prototype.on_remove) removed) w{buffs = others}
   (Effect_Randomly source p what) w
-    | (cond, rng) <- rollChance p w.rng
+    | (cond, w') <- rollProc source p w
     , let effect = [what | cond]
-    -> addEffects source effect w{rng=rng}
+    -> addEffects source effect w'
 
 getResource :: Number -> LiveResource -> LiveResource
 getResource amount res = res{current = clamp (res.prototype.min, res.prototype.max) (res.current + amount)}
@@ -263,3 +265,13 @@ calculateInt t w b = floor . calculate t w b . int2Num
 
 calculateModifiedCost :: Text -> [LiveBuff] -> Cost -> Cost
 calculateModifiedCost name buffs cost = cost{amount = calculate name (Mod_Cost cost.target) buffs cost.amount}
+
+rollProc :: Text -> Number -> World -> (Bool, World)
+rollProc name p w = let
+  state = fromMaybe 0 $ Map.lookup name w.procState
+  (roll, rng') = rollRangePrec 2 (p/100) w.rng
+  total = state + p
+  happens = roll <= total
+  total' = if happens then total - roll else total
+  procState = Map.insert name total' w.procState
+  in (happens, w{rng = rng', procState = procState})

@@ -21,7 +21,7 @@ initWorld = sharedCD "gcd" $ Level
     [ Ability
       { name = "arcane-blast"
       , cast_style = Normal
-      , cast_time = 90, channel_time = 0, channel_tick = 0
+      , cast_time = 120, channel_time = 0, channel_tick = 0
       , on_cast_start = []
       , on_cast_finish =
         [ Effect_Damage 100
@@ -67,7 +67,7 @@ initWorld = sharedCD "gcd" $ Level
       , cost_tick = []
       }
     ]
-  , buffs = PF.Simulation.Notation.byName
+  , buffs = byName
     [ Buff
       { name = "arcane-blast"
       , stackingMode = Buff_Refresh
@@ -98,14 +98,7 @@ initWorld = sharedCD "gcd" $ Level
           , targets = ["arcane-blast"]
           , class_ = Mod_Increased
           , what = Mod_CastSpeed
-          , magnitude = 0.3
-          }
-        , Modifier
-          { name = "arcane-blast-gcd"
-          , targets = ["arcane-blast"]
-          , class_ = Mod_Increased_Invert
-          , what = Mod_Cost "gcd"
-          , magnitude = -0.3
+          , magnitude = 0.25
           }
         ]
       }
