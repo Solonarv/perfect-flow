@@ -3,20 +3,21 @@ module PF.Levels.ArcaneWizard where
 
 import PF.Simulation
 import PF.Simulation.Notation
-import PF.Number
+import PF.Data.Number
+import PF.Simulation.Level
 
-initWorld :: World
-initWorld = sharedCD "gcd" $ emptyWorld
-  { resources = byName
+initWorld :: Level
+initWorld = sharedCD "gcd" $ Level
+  { resources =
     [ Resource
       { name = "mana"
-      , min = 0, max = 1000, current = 1000
+      , min = 0, max = 1000, start = 1000
       , regen = 5 / 60
       }
     , chargeResource "evocation-charges" 20
     , chargeResource "arcane-missiles-charges" 1
     ]
-  , abilities = byName $
+  , abilities =
     [ Ability
       { name = "evocation"
       , cast_style = Channel
@@ -56,48 +57,7 @@ initWorld = sharedCD "gcd" $ emptyWorld
         [ Effect_Damage 100
         , Effect_GetResource "evocation-charges" 1
         , missileChance 0.2
-        , Effect_ApplyBuff Buff
-          { name = "arcane-blast"
-          , stackingMode = Buff_Refresh
-          , maxStacks = 4
-          , original_duration = 3600
-          , remaining = 3600
-          , on_apply = []
-          , on_tick = []
-          , on_expire = []
-          , on_remove = []
-          , tick_time = 0
-          , modifiers =
-            [ Modifier
-              { name = "arcane-blast-damage"
-              , targets = ["arcane-blast", "arcane-barrage", "arcane-missiles"]
-              , class_ = Mod_Increased
-              , what = Mod_Damage
-              , magnitude = 0.4
-              }
-            , Modifier
-              { name = "arcane-blast-cost"
-              , targets = ["arcane-blast"]
-              , class_ = Mod_AddBase
-              , what = Mod_Cost "mana"
-              , magnitude = 8
-              }
-            , Modifier
-              { name = "arcane-blast-speed"
-              , targets = ["arcane-blast"]
-              , class_ = Mod_Increased
-              , what = Mod_CastSpeed
-              , magnitude = 0.3
-              }
-            , Modifier
-              { name = "arcane-blast-gcd"
-              , targets = ["arcane-blast"]
-              , class_ = Mod_Increased_Invert
-              , what = Mod_Cost "gcd"
-              , magnitude = -0.3
-              }
-            ]
-          }
+        , Effect_ApplyBuff "arcane-blast"
         ]
       , on_channel_tick = []
       , cost =
@@ -105,6 +65,49 @@ initWorld = sharedCD "gcd" $ emptyWorld
         , Cost "mana" 12 False
         ]
       , cost_tick = []
+      }
+    ]
+  , buffs = byName
+    [ Buff
+      { name = "arcane-blast"
+      , stackingMode = Buff_Refresh
+      , maxStacks = 4
+      , duration = 3600
+      , on_apply = []
+      , on_tick = []
+      , on_expire = []
+      , on_remove = []
+      , tick_time = 0
+      , modifiers =
+        [ Modifier
+          { name = "arcane-blast-damage"
+          , targets = ["arcane-blast", "arcane-barrage", "arcane-missiles"]
+          , class_ = Mod_Increased
+          , what = Mod_Damage
+          , magnitude = 0.4
+          }
+        , Modifier
+          { name = "arcane-blast-cost"
+          , targets = ["arcane-blast"]
+          , class_ = Mod_AddBase
+          , what = Mod_Cost "mana"
+          , magnitude = 8
+          }
+        , Modifier
+          { name = "arcane-blast-speed"
+          , targets = ["arcane-blast"]
+          , class_ = Mod_Increased
+          , what = Mod_CastSpeed
+          , magnitude = 0.3
+          }
+        , Modifier
+          { name = "arcane-blast-gcd"
+          , targets = ["arcane-blast"]
+          , class_ = Mod_Increased_Invert
+          , what = Mod_Cost "gcd"
+          , magnitude = -0.3
+          }
+        ]
       }
     ]
   }

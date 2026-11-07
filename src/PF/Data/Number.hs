@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module PF.Number (Number(..), int2Num, (%)) where
+module PF.Data.Number (Number(..), int2Num, (%)) where
 
 import Data.Ratio
 

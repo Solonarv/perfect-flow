@@ -17,82 +17,25 @@ import Data.Monoid
 import qualified Data.Set as Set
 import Data.List
 
-import PF.Number
+import PF.Data.Number
+import PF.Data.Named
 import PF.Random
 
-data Resource = Resource
-  { name :: Text
-  , current, min, max :: Number
-  , regen :: Number
+import PF.Simulation.Level
+
+data LiveResource = LiveResource
+  { prototype :: Resource
+  , current :: Number
   }
   deriving (Eq, Ord, Show)
+  deriving (Named) via (Prototyped LiveResource)
 
-data CastStyle = Free | Instant | Normal | Channel | CastChannel
-  deriving (Eq, Ord, Show)
-
-isChannelStyle :: CastStyle -> Bool
-isChannelStyle = \case Channel; CastChannel -> True; _ -> False
-
-data Ability = Ability
-  { name :: Text
-  , cast_style :: CastStyle
-  , cast_time :: Number
-  , channel_time, channel_tick :: Number
-  , on_cast_start, on_cast_finish, on_channel_tick :: [Effect]
-  , cost, cost_tick :: [Cost]
+data LiveBuff = LiveBuff
+  { prototype :: Buff
+  , remaining :: Number
   }
   deriving (Eq, Ord, Show)
-
-data Cost = Cost
-  { target :: Text
-  , amount :: Number
-  , phantom :: Bool  -- ^ if true, don't actually subtract the resource, just check if there'd be enough
-  }
-  deriving (Eq, Ord, Show)
-
-data Effect
-  = Effect_Damage Number
-  | Effect_GetResource Text Number
-  | Effect_ApplyBuff Buff
-  | Effect_RemoveBuff_Oldest Text
-  | Effect_RemoveBuff_Newest Text
-  | Effect_RemoveBuff_All Text
-  | Effect_Randomly Text Number Effect
-  deriving (Eq, Ord, Show)
-
-data ModifierClass = Mod_AddBase | Mod_Increased | Mod_More | Mod_Increased_Invert | Mod_AddFinal
-  deriving (Eq, Ord, Show)
-
-data ModifierWhat = Mod_Damage | Mod_Cost Text | Mod_CastSpeed | Mod_Max | Mod_Regen | Mod_Gained Text
-  deriving (Eq, Ord, Show)
-
-data Modifier = Modifier
-  { name :: Text
-  , targets :: Set Text
-  , class_ :: ModifierClass
-  , what :: ModifierWhat
-  , magnitude :: Number
-  }
-  deriving (Eq, Ord, Show)
-
--- | What to do when the stack limit is already reached, but an effect
--- wants to add another buff of the same name.
-data BuffStackingMode
-  = Buff_Discard      -- ^ New buff isn't applied
-  | Buff_Override     -- ^ Oldest buff is removed
-  | Buff_Refresh      -- ^ Older buffs stay, duration reset
-  deriving (Eq, Ord, Show)
-
-data Buff = Buff
-  { name :: Text
-  , stackingMode :: BuffStackingMode
-  , maxStacks :: Int
-  , original_duration, remaining :: Number
-  , on_apply, on_tick, on_expire, on_remove :: [Effect]
-  , tick_time :: Number
-  , modifiers :: [Modifier]
-  }
-  deriving (Eq, Ord, Show)
+  deriving (Named) via (Prototyped LiveBuff)
 
 
 data CurrentCast = CurrentCast
@@ -104,27 +47,33 @@ data CurrentCast = CurrentCast
   deriving (Eq, Ord, Show)
 
 data World = World
-  { resources :: Map Text Resource
-  , abilities :: Map Text Ability
+  { prototype :: Level
+  , resources :: Map Text LiveResource
   , currently_casting :: Maybe CurrentCast
   , pending_effects :: [Effect]
-  , buffs :: [Buff]
+  , buffs :: [LiveBuff]
   , tick :: Int
   , damage :: Int
   , rng :: StdGen
   }
   deriving (Eq, Show)
 
-emptyWorld :: World
-emptyWorld = World
-  { resources = Map.empty
-  , abilities = Map.empty
+hydrateWorld :: StdGen -> Level -> World
+hydrateWorld rng proto = World
+  { prototype = proto
+  , rng = rng
   , currently_casting = Nothing
   , pending_effects = []
   , buffs = []
-  , tick = 0
+  , tick  = 0
   , damage = 0
-  , rng = mkStdGen 0
+  , resources = Map.fromList [(r.name, hydrateResource r) | r <- proto.resources]
+  }
+
+hydrateResource :: Resource -> LiveResource
+hydrateResource proto = LiveResource
+  { prototype = proto
+  , current = proto.start
   }
 
 step :: World -> World
@@ -176,7 +125,7 @@ stepCasting world
       case payCosts casting.ability.name casting.ability.cost_tick w of
         Nothing -> modify stopCasting
         Just paid -> do
-          modify $ \w->w{resources=paid}
+          modify @World $ \w->w{resources=paid}
           modify $ addEffects casting.ability.name casting.ability.on_channel_tick
           modify $ \w ->w{currently_casting = Just casting{nextChannelTick = casting.nextChannelTick + casting.ability.channel_tick}}
 
@@ -186,7 +135,7 @@ stepCasting world
 addEffects :: Text -> [Effect] -> World -> World
 addEffects source effects world = world{pending_effects = fmap (augmentEffect source world.buffs) effects <> world.pending_effects}
 
-augmentEffect :: Text -> [Buff] -> Effect -> Effect
+augmentEffect :: Text -> [LiveBuff] -> Effect -> Effect
 augmentEffect source buffs = \case
   Effect_Damage amount -> Effect_Damage (calculate source Mod_Damage buffs amount)
   Effect_GetResource which amount -> Effect_GetResource which (calculate source (Mod_Gained which) buffs amount)
@@ -203,33 +152,35 @@ applyEffect :: Effect -> World -> World
 applyEffect = \cases
   (Effect_Damage amount) w -> w{damage = w.damage + floor (amount.value)}
   (Effect_GetResource which amount) w -> w{resources = Map.adjust (getResource amount) which w.resources}
-  (Effect_ApplyBuff buff) w -> applyBuff buff w
+  (Effect_ApplyBuff name) w 
+    | Just proto <- Map.lookup name w.prototype.buffs
+    -> applyBuff proto w
   (Effect_RemoveBuff_Newest which) w
-    | (matched, others) <- partition (\b -> b.name == which) w.buffs
-    , (newest:rest) <- matched -> addEffects newest.name newest.on_remove w{buffs = rest ++ others}
+    | (matched, others) <- partition (\b -> b.prototype.name == which) w.buffs
+    , (newest:rest) <- matched -> addEffects newest.prototype.name newest.prototype.on_remove w{buffs = rest ++ others}
   (Effect_RemoveBuff_Oldest which) w
-    | (matched, others) <- partition (\b -> b.name == which) w.buffs
+    | (matched, others) <- partition (\b -> b.prototype.name == which) w.buffs
     , Just (rest, oldest) <- unsnoc matched
-    -> addEffects oldest.name oldest.on_remove w{buffs = rest ++ others}
+    -> addEffects oldest.prototype.name oldest.prototype.on_remove w{buffs = rest ++ others}
   (Effect_RemoveBuff_All which) w
-    | (removed, others) <- partition (\b -> b.name == which) w.buffs
-    -> addEffects which (concatMap (.on_remove) removed) w{buffs = others}
+    | (removed, others) <- partition (\b -> nameOf b == which) w.buffs
+    -> addEffects which (concatMap (.prototype.on_remove) removed) w{buffs = others}
   (Effect_Randomly source p what) w
     | (cond, rng) <- rollChance p w.rng
     , let effect = [what | cond]
     -> addEffects source effect w{rng=rng}
 
-getResource :: Number -> Resource -> Resource
-getResource amount res = res{current = clamp (res.min, res.max) (res.current + amount)}
+getResource :: Number -> LiveResource -> LiveResource
+getResource amount res = res{current = clamp (res.prototype.min, res.prototype.max) (res.current + amount)}
 
 data MayInterrupt = Interrupt_Do | Interrupt_Don't
   deriving (Eq, Ord, Show)
 
 cast :: Text -> MayInterrupt -> World -> World
 cast what int w
-  | Just ability <- Map.lookup what w.abilities
+  | Just ability <- Map.lookup what w.prototype.abilities
   , Just paid <- canCast ability int w
-  , w <- w{resources = paid}
+  , w <- w{resources = paid} :: World
   , w <- if ability.cast_style == Free
           then w
           else w{currently_casting = Just (CurrentCast ability 0 0 False)}
@@ -237,7 +188,7 @@ cast what int w
   = stepPendingEffects w
   | otherwise = w
 
-canCast :: Ability -> MayInterrupt -> World -> Maybe (Map Text Resource)
+canCast :: Ability -> MayInterrupt -> World -> Maybe (Map Text LiveResource)
 canCast ability int w
   | isNothing w.currently_casting
     || ability.cast_style == Free
@@ -249,10 +200,10 @@ canCast ability int w
 stopCasting :: World -> World
 stopCasting w = w{currently_casting = Nothing}
 
-payCosts :: Text -> [Cost] -> World -> Maybe (Map Text Resource)
+payCosts :: Text -> [Cost] -> World -> Maybe (Map Text LiveResource)
 payCosts name costs w = foldM expend w.resources (fmap (calculateModifiedCost name w.buffs) costs)
 
-expend :: Map Text Resource -> Cost -> Maybe (Map Text Resource)
+expend :: Map Text LiveResource -> Cost -> Maybe (Map Text LiveResource)
 expend resources cost = do
   res <- Map.lookup cost.target resources
   let newAmount = res.current - cost.amount
@@ -263,18 +214,24 @@ expend resources cost = do
 
 applyBuff :: Buff -> World -> World
 applyBuff buff w = let
-  (existing, others) = partition (\b -> b.name == buff.name) w.buffs
+  (existing, others) = partition (\b -> b.prototype.name == buff.name) w.buffs
   (these, triggers) = if
     | length existing < buff.maxStacks
-    -> (buff:existing, buff.on_apply)
+    -> (hydrateBuff buff : existing, buff.on_apply)
     | Buff_Discard <- buff.stackingMode -> (existing, [])
     | Buff_Override <- buff.stackingMode
     , Just (rest, removed) <- unsnoc existing
-    -> (buff:rest, buff.on_apply ++ removed.on_remove)
+    -> (hydrateBuff buff:rest, buff.on_apply ++ removed.prototype.on_remove)
     | Buff_Refresh <- buff.stackingMode
-    , refresh <- \b -> b{remaining = max b.remaining buff.remaining}
+    , refresh <- \b -> b{remaining = max b.remaining buff.duration}
     -> (refresh <$> existing, buff.on_apply)
   in addEffects buff.name triggers w{buffs = these ++ others}
+
+hydrateBuff :: Buff -> LiveBuff
+hydrateBuff buff = LiveBuff
+  { prototype = buff
+  , remaining = buff.duration
+  }
 
 -- | Apply all modifiers to the given value, respecting modifier class.
 executeModifiers :: [Modifier] -> Number -> Number
@@ -288,7 +245,7 @@ executeModifiers mods base = let
   (addBase, increased, more, increased_invert, addFinal) = foldMap mod2vec mods
   in (base + getSum addBase) * (1 + getSum increased) / (1 - getSum increased_invert) * getProduct more + getSum addFinal
 
-collectModifiersFor :: Text -> ModifierWhat -> [Buff] -> [Modifier]
+collectModifiersFor :: Text -> ModifierWhat -> [LiveBuff] -> [Modifier]
 collectModifiersFor name what buffs = 
   [ mod
   | buff <- buffs
@@ -297,11 +254,11 @@ collectModifiersFor name what buffs =
   , Set.null mod.targets || name `Set.member` mod.targets
   ]
 
-calculate :: Text -> ModifierWhat -> [Buff] -> Number -> Number
+calculate :: Text -> ModifierWhat -> [LiveBuff] -> Number -> Number
 calculate name what buffs base = executeModifiers (collectModifiersFor name what buffs) base
 
-calculateInt :: Text -> ModifierWhat -> [Buff] -> Int -> Int
+calculateInt :: Text -> ModifierWhat -> [LiveBuff] -> Int -> Int
 calculateInt t w b = floor . calculate t w b . int2Num
 
-calculateModifiedCost :: Text -> [Buff] -> Cost -> Cost
+calculateModifiedCost :: Text -> [LiveBuff] -> Cost -> Cost
 calculateModifiedCost name buffs cost = cost{amount = calculate name (Mod_Cost cost.target) buffs cost.amount}

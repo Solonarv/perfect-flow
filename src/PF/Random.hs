@@ -1,7 +1,7 @@
 module PF.Random (module System.Random, rollChance) where
 
 import System.Random
-import PF.Number
+import PF.Data.Number
 import Data.Ratio
 
 rollChance :: RandomGen g => Number -> g -> (Bool, g)
