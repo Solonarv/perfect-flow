@@ -51,6 +51,7 @@ import Data.Foldable
 import Data.Maybe
 import Control.Concurrent (threadDelay)
 import PF.Random
+import PF.Simulation.Level
 
 pfMain :: IO ()
 pfMain = do
@@ -67,7 +68,10 @@ pfMain = do
   window <- createWindow "Perfect Flow" wincfg
   renderer <- createRenderer window 0 defaultRenderer
   opensans12 <- Font.load "data/assets/fonts/OpenSans-Regular.ttf" 12
-  runAppWith window renderer PF.Levels.ArcaneWizard.initWorld opensans12 app
+  rng <- initStdGen
+  liftIO $ putStrLn $ "RNG Seed: " <> show rng
+  let world = hydrateWorld rng PF.Levels.ArcaneWizard.initWorld
+  runAppWith window renderer world opensans12 app
   putStrLn "Shutting down!"
   destroyRenderer renderer
   destroyWindow window
@@ -87,11 +91,6 @@ nextColor Blue = Red
 
 app :: AppM ()
 app = do
-  ref <- asks (.world)
-  liftIO do
-    rng <- initStdGen
-    liftIO $ putStrLn $ "RNG Seed: " <> show rng
-    liftIO $ modifyIORef' ref \w->w{rng=rng}
   rdr <- asks (.renderer)
 
   let red = V4 255 0 0 255
@@ -160,7 +159,7 @@ doInstruction = \case
   Cast i force -> do
     worldRef <- asks (.world)
     world <- liftIO $ readIORef worldRef
-    let ability = case drop i (toList world.abilities) of
+    let ability = case drop i (world.prototype.abilities) of
           (x:_) -> Just x
           _ -> Nothing
         int = if force then Interrupt_Do else Interrupt_Don't

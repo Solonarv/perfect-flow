@@ -39,18 +39,18 @@ drawResources = do
       width, height, fillWidth :: CInt
       width = 200
       height = 40
-      fillLevel = res.current / res.max
+      fillLevel = res.current / res.prototype.max
       fillWidth = round (fromIntegral width * fillLevel)
-      minFillWidth = round (fromIntegral width * res.min / res.max)
+      minFillWidth = round (fromIntegral width * res.prototype.min / res.prototype.max)
       basePoint = P (V2 420 (10 + 50*i))
     rendererDrawColor rdr $= V4 0 255 0 255
     fillRect rdr (Just $ Rectangle basePoint (V2 fillWidth height))
-    when (res.min > 0) do
+    when (res.prototype.min > 0) do
       rendererDrawColor rdr $= V4 127 127 0 255
       fillRect rdr (Just $ Rectangle basePoint (V2 minFillWidth height))
     rendererDrawColor rdr $= V4 0 0 0 255
     drawRect rdr (Just $ Rectangle basePoint (V2 width height))
-    let label = res.name <> " " <> Text.pack (show (floor res.current) <> "/" <> show (floor res.max))
+    let label = res.prototype.name <> " " <> Text.pack (show (floor res.current) <> "/" <> show (floor res.prototype.max))
     font <- asks (.opensans12)
     labelSurf <- Font.solid font (V4 60 127 240 255) label
     labelTex <- createTextureFromSurface rdr labelSurf
@@ -60,7 +60,7 @@ drawResources = do
 drawAbilities :: AppM ()
 drawAbilities = do
   world <- liftIO . readIORef =<< asks (.world)
-  for_ (zip [0..] (toList world.abilities)) \(i, ability) -> do
+  for_ (zip [0..] (toList world.prototype.abilities)) \(i, ability) -> do
     rdr <- asks (.renderer)
     let
       width, height :: CInt

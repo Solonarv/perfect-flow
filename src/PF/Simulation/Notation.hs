@@ -8,6 +8,9 @@ import Data.Foldable (toList)
 import PF.Simulation.Level
 import PF.Data.Number
 
+byName :: (HasField "name" r n, Ord n) => [r] -> Map n r
+byName rs = Map.fromList [(r.name, r) | r <- rs]
+
 chargeResource :: Text -> Int -> Resource
 chargeResource name max = Resource {name = name, max = int2Num max, min = 0, start = 0, regen = 0}
 

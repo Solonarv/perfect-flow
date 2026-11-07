@@ -19,13 +19,21 @@ initWorld = sharedCD "gcd" $ Level
     ]
   , abilities =
     [ Ability
-      { name = "evocation"
-      , cast_style = Channel
-      , cast_time = 0, channel_time = 600, channel_tick = 120
-      , on_cast_start = [Effect_RemoveBuff_All "arcane-blast"]
-      , on_cast_finish = []
-      , on_channel_tick = [Effect_GetResource "mana" 120]
-      , cost = [_GCD, Cost "evocation-charges" 20 False]
+      { name = "arcane-blast"
+      , cast_style = Normal
+      , cast_time = 90, channel_time = 0, channel_tick = 0
+      , on_cast_start = []
+      , on_cast_finish =
+        [ Effect_Damage 100
+        , Effect_GetResource "evocation-charges" 1
+        , missileChance 0.2
+        , Effect_ApplyBuff "arcane-blast"
+        ]
+      , on_channel_tick = []
+      , cost =
+        [_GCD
+        , Cost "mana" 12 False
+        ]
       , cost_tick = []
       }
     , Ability
@@ -49,25 +57,17 @@ initWorld = sharedCD "gcd" $ Level
       , cost_tick = []
       }
     , Ability
-      { name = "arcane-blast"
-      , cast_style = Normal
-      , cast_time = 90, channel_time = 0, channel_tick = 0
-      , on_cast_start = []
-      , on_cast_finish =
-        [ Effect_Damage 100
-        , Effect_GetResource "evocation-charges" 1
-        , missileChance 0.2
-        , Effect_ApplyBuff "arcane-blast"
-        ]
-      , on_channel_tick = []
-      , cost =
-        [_GCD
-        , Cost "mana" 12 False
-        ]
+      { name = "evocation"
+      , cast_style = Channel
+      , cast_time = 0, channel_time = 600, channel_tick = 120
+      , on_cast_start = [Effect_RemoveBuff_All "arcane-blast"]
+      , on_cast_finish = []
+      , on_channel_tick = [Effect_GetResource "mana" 120]
+      , cost = [_GCD, Cost "evocation-charges" 20 False]
       , cost_tick = []
       }
     ]
-  , buffs = byName
+  , buffs = PF.Simulation.Notation.byName
     [ Buff
       { name = "arcane-blast"
       , stackingMode = Buff_Refresh

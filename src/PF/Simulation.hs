@@ -91,17 +91,18 @@ stepTime w = w
       castSpeed = calculate cc.ability.name Mod_CastSpeed w.buffs 1
       in cc{progress = cc.progress+castSpeed}
     stepRegen tick res
-      | res.regen == 0 = res
+      | res.prototype.regen == 0 = res
       | otherwise
-      = res{ current = clamp (res.min, res.max) $ res.current + res.regen }
+      = let gain = calculate (nameOf res) (Mod_Gained (nameOf res)) w.buffs res.prototype.regen
+        in res{ current = clamp (res.prototype.min, res.prototype.max) $ res.current + gain }
 
 stepBuffs :: World -> World
 stepBuffs w = let
   (removed, remaining) = partition (\b -> b.remaining < 0) w.buffs
   ticking = filter shouldTick remaining
-  shouldTick buff = buff.tick_time > 0 && abs (snd $ properFraction $ buff.remaining / buff.tick_time) < 1
-  in flip (foldr (\b w' -> addEffects b.name b.on_expire w')) removed
-  $ foldr ((\b w' -> addEffects b.name b.on_tick w')) w{buffs = remaining} ticking
+  shouldTick buff = buff.prototype.tick_time > 0 && abs (snd $ properFraction $ buff.remaining / buff.prototype.tick_time) < 1
+  in flip (foldr (\b w' -> addEffects (nameOf b) b.prototype.on_expire w')) removed
+  $ foldr ((\b w' -> addEffects (nameOf b) b.prototype.on_tick w')) w{buffs = remaining} ticking
 
 stepCasting :: World -> World
 stepCasting world
@@ -178,7 +179,7 @@ data MayInterrupt = Interrupt_Do | Interrupt_Don't
 
 cast :: Text -> MayInterrupt -> World -> World
 cast what int w
-  | Just ability <- Map.lookup what w.prototype.abilities
+  | [ability] <- filter (\a -> nameOf a == what) w.prototype.abilities
   , Just paid <- canCast ability int w
   , w <- w{resources = paid} :: World
   , w <- if ability.cast_style == Free
@@ -207,7 +208,7 @@ expend :: Map Text LiveResource -> Cost -> Maybe (Map Text LiveResource)
 expend resources cost = do
   res <- Map.lookup cost.target resources
   let newAmount = res.current - cost.amount
-  guard (newAmount >= res.min && newAmount <= res.max)
+  guard (newAmount >= res.prototype.min && newAmount <= res.prototype.max)
   pure if cost.phantom
     then resources
     else Map.insert cost.target res{current = newAmount} resources
@@ -249,7 +250,7 @@ collectModifiersFor :: Text -> ModifierWhat -> [LiveBuff] -> [Modifier]
 collectModifiersFor name what buffs = 
   [ mod
   | buff <- buffs
-  , mod <- buff.modifiers
+  , mod <- buff.prototype.modifiers
   , mod.what == what
   , Set.null mod.targets || name `Set.member` mod.targets
   ]
