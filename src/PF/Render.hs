@@ -94,7 +94,9 @@ drawCasting = do
       height = 60
       basePoint = P (V2 200 380)
       color = V4 0 255 0 255
-      progress = casting.progress
+      progress
+        | casting.channeling = ability.channel_time - casting.progress
+        | otherwise = casting.progress
       max_progress
         | casting.channeling = ability.channel_time
         | otherwise = max 1 ability.cast_time
