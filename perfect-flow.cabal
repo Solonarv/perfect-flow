@@ -27,6 +27,8 @@ common language
                     , DuplicateRecordFields, NamedFieldPuns, RecordWildCards, NoFieldSelectors, OverloadedRecordDot
                     , TypeApplications, DataKinds, LambdaCase, OrPatterns, BlockArguments, FlexibleContexts
                     , MultiWayIf
+                    -- the intended migration path doesn't even exist yet
+  ghc-options:      -Wno-ambiguous-fields
 
 executable perfect-flow
   import: language
