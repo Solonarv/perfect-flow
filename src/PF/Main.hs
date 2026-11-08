@@ -52,6 +52,7 @@ import Data.Maybe
 import Control.Concurrent (threadDelay)
 import PF.Random
 import PF.Simulation.Level
+import qualified PF.Locale as Locale
 
 pfMain :: IO ()
 pfMain = do
@@ -71,7 +72,8 @@ pfMain = do
   rng <- initStdGen
   liftIO $ putStrLn $ "RNG Seed: " <> show rng
   let world = hydrateWorld rng PF.Levels.ArcaneWizard.initWorld
-  runAppWith window renderer world opensans12 app
+  loc <- Locale.loadLocale "data/assets/locale/en/arcane-wizard.json"
+  runAppWith window renderer world loc opensans12 app
   putStrLn "Shutting down!"
   destroyRenderer renderer
   destroyWindow window

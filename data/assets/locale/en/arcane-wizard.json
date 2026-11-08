@@ -1,0 +1,44 @@
+{
+    "ability": {
+        "arcane-blast": {
+            "_here": "Arcane Blast",
+            "description":
+                "Deal 100 damage, then empower your further arcane blasts to deal 40% increased damage and have 25% increased cast speed, but cost 20 extra mana.\n\nArcane Missiles and Arcane Barrage also gain the damage bonus. Arcane Barrage and Evocation will remove the damage bonus. Max 4 stacks."
+        },
+        "arcane-missiles": {
+            "_here": "Arcane Missiles",
+            "description": "While channeling, deals 90 damage every 0.5 seconds. Also has a 20% chance each hit to reduce cooldown of Evocation by 1 second.\n\nArcane Missiles has a 20% chance to become usable when you hit with Arcane Blast and a 40% chance with Arcane Barrage."
+        },
+        "arcane-barrage": {
+            "_here": "Arcane Barrage",
+            "description": "Instantly deal 180 damage and remove all stacks of Arcane Blast."
+
+        },
+        "evocation": {
+            "_here": "Evocation",
+            "description": 
+                "Recover 600 mana over 10 seconds. Removes all stacks of Arcane Blast on cast."
+        },
+        "power-surge": {
+            "_here": "Power Surge",
+            "description":
+                "Grants 40% more damage, but spells cost 40% more mana. Lasts 15 seconds."
+        }
+    },
+    "resource": {
+        "mana": {
+            "_here": "Mana"
+        }
+    },
+    "buff": {
+        "arcane-blast": {
+            "_here": "Arcane Blast",
+            "description":
+                "All your spells deal 40% increased damage. Arcane Blast also has 25% increased cast speed, but costs 20 extra mana."
+        },
+        "power-surge": {
+            "_here": "Power Surge",
+            "description": "Your spells deal 40% more damage, but cost 40% more mana."
+        }
+    }
+}

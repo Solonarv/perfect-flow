@@ -34,7 +34,6 @@ initWorld = sharedCD "gcd" $ Level
       , on_cast_start = []
       , on_cast_finish =
         [ Effect_Damage 100
-        , Effect_GetResource "evocation-charges" 1
         , missileChance 0.2
         , Effect_ApplyBuff "arcane-blast"
         ]
@@ -117,7 +116,7 @@ initWorld = sharedCD "gcd" $ Level
           , targets = ["arcane-blast"]
           , class_ = Mod_AddBase
           , what = Mod_Cost "mana"
-          , magnitude = 8
+          , magnitude = 20
           }
         , Modifier
           { name = "arcane-blast.speed"
@@ -140,13 +139,6 @@ initWorld = sharedCD "gcd" $ Level
       , tick_time = 0
       , modifiers =
         [ Modifier
-          { name = "power-surge.gcd"
-          , targets = ["gcd"]
-          , class_ = Mod_More
-          , what = Mod_Gained "gcd"
-          , magnitude = 0.4
-          }
-        , Modifier
           { name = "power-surge.damage"
           , targets = ["arcane-blast", "arcane-barrage", "arcane-missiles"]
           , what = Mod_Damage

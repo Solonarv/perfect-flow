@@ -51,7 +51,9 @@ drawResources = do
       fillRect rdr (Just $ Rectangle basePoint (V2 minFillWidth height))
     rendererDrawColor rdr $= V4 0 0 0 255
     drawRect rdr (Just $ Rectangle basePoint (V2 width height))
-    let label = Sym.unintern (res.prototype.name) <> " " <> Text.pack (show (floor res.current) <> "/" <> show (floor res.prototype.max))
+    loc <- liftIO . readIORef =<< asks (.locale)
+    let resName = loc.get ["resource", res.prototype.name]
+    let label = resName <> " " <> Text.pack (show (floor res.current) <> "/" <> show (floor res.prototype.max))
     font <- asks (.opensans12)
     labelSurf <- Font.solid font (V4 60 127 240 255) label
     labelTex <- createTextureFromSurface rdr labelSurf
