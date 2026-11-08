@@ -109,4 +109,4 @@ _GCD :: Cost
 _GCD = cdCost "gcd" 60
 
 missileChance :: Number -> Effect
-missileChance p = Effect_Randomly "arcane-missile-recharge" p (Effect_GetResource "arcane-missiles-charges" 1)
+missileChance p = Effect_Randomly "arcane-missile-recharge" p (Effect_GetResource "arcane-missiles-charges" 1) Nothing

@@ -8,6 +8,9 @@ import Data.Set (Set)
 import Data.Map (Map)
 import GHC.Records (HasField)
 import PF.Data.Named
+import qualified Data.Map.Strict as Map
+import Control.Monad (guard)
+import qualified Data.Set as Set
 
 data Resource = Resource
   { name :: Text
@@ -48,7 +51,8 @@ data Effect
   | Effect_RemoveBuff_Oldest Text
   | Effect_RemoveBuff_Newest Text
   | Effect_RemoveBuff_All Text
-  | Effect_Randomly Text Number Effect
+  | Effect_Randomly Text Number Effect (Maybe Effect)
+  | Effect_Sequence Text [Effect]
   deriving (Eq, Ord, Show)
 
 data ModifierClass = Mod_AddBase | Mod_Increased | Mod_More | Mod_Increased_Invert | Mod_AddFinal
@@ -100,3 +104,4 @@ newtype Prototyped a = Prototyped a
 
 instance (Named p, HasField "prototype" a p) => Named (Prototyped a) where
   nameOf (Prototyped x) = nameOf x.prototype
+

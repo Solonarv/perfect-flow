@@ -168,10 +168,11 @@ applyEffect = \cases
   (Effect_RemoveBuff_All which) w
     | (removed, others) <- partition (\b -> nameOf b == which) w.buffs
     -> addEffects which (concatMap (.prototype.on_remove) removed) w{buffs = others}
-  (Effect_Randomly source p what) w
+  (Effect_Randomly source p what els) w
     | (cond, w') <- rollProc source p w
-    , let effect = [what | cond]
+    , let effect = if cond then [what] else maybeToList els
     -> addEffects source effect w'
+  (Effect_Sequence source sq) w -> addEffects source sq w
 
 getResource :: Number -> LiveResource -> LiveResource
 getResource amount res = res{current = clamp (res.prototype.min, res.prototype.max) (res.current + amount)}
