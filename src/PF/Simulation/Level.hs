@@ -3,7 +3,8 @@
 module PF.Simulation.Level where
 
 import PF.Data.Number
-import Data.Text (Text)
+import Symbolize (Symbol)
+import qualified Symbolize
 import Data.Set (Set)
 import Data.Map (Map)
 import GHC.Records (HasField)
@@ -11,9 +12,10 @@ import PF.Data.Named
 import qualified Data.Map.Strict as Map
 import Control.Monad (guard)
 import qualified Data.Set as Set
+import Data.HashMap.Strict (HashMap)
 
 data Resource = Resource
-  { name :: Text
+  { name :: Symbol
   , min, max, regen, start :: Number
   }
   deriving (Eq, Ord, Show)
@@ -27,7 +29,7 @@ isChannelStyle :: CastStyle -> Bool
 isChannelStyle = \case Channel; CastChannel -> True; _ -> False
 
 data Ability = Ability
-  { name :: Text
+  { name :: Symbol
   , cast_style :: CastStyle
   , cast_time :: Number
   , channel_time, channel_tick :: Number
@@ -38,7 +40,7 @@ data Ability = Ability
   deriving anyclass Named
 
 data Cost = Cost
-  { target :: Text
+  { target :: Symbol
   , amount :: Number
   , phantom :: Bool  -- ^ if true, don't actually subtract the LiveResource, just check if there'd be enough
   }
@@ -46,24 +48,24 @@ data Cost = Cost
 
 data Effect
   = Effect_Damage Number
-  | Effect_GetResource Text Number
-  | Effect_ApplyBuff Text
-  | Effect_RemoveBuff_Oldest Text
-  | Effect_RemoveBuff_Newest Text
-  | Effect_RemoveBuff_All Text
-  | Effect_Randomly Text Number Effect (Maybe Effect)
-  | Effect_Sequence Text [Effect]
+  | Effect_GetResource Symbol Number
+  | Effect_ApplyBuff Symbol
+  | Effect_RemoveBuff_Oldest Symbol
+  | Effect_RemoveBuff_Newest Symbol
+  | Effect_RemoveBuff_All Symbol
+  | Effect_Randomly Symbol Number Effect (Maybe Effect)
+  | Effect_Sequence Symbol [Effect]
   deriving (Eq, Ord, Show)
 
 data ModifierClass = Mod_AddBase | Mod_Increased | Mod_More | Mod_Increased_Invert | Mod_AddFinal
   deriving (Eq, Ord, Show)
 
-data ModifierWhat = Mod_Damage | Mod_Cost Text | Mod_CastSpeed | Mod_Max | Mod_Regen | Mod_Gained Text
+data ModifierWhat = Mod_Damage | Mod_Cost Symbol | Mod_CastSpeed | Mod_Max | Mod_Regen | Mod_Gained Symbol
   deriving (Eq, Ord, Show)
 
 data Modifier = Modifier
-  { name :: Text
-  , targets :: Set Text
+  { name :: Symbol
+  , targets :: Set Symbol
   , class_ :: ModifierClass
   , what :: ModifierWhat
   , magnitude :: Number
@@ -80,7 +82,7 @@ data BuffStackingMode
   deriving (Eq, Ord, Show)
 
 data Buff = Buff
-  { name :: Text
+  { name :: Symbol
   , stackingMode :: BuffStackingMode
   , maxStacks :: Int
   , duration :: Number
@@ -94,7 +96,7 @@ data Buff = Buff
 data Level = Level
   { resources :: [Resource]
   , abilities :: [Ability]
-  , buffs :: Map Text Buff
+  , buffs :: HashMap Symbol Buff
   }
   deriving (Eq, Ord, Show)
 

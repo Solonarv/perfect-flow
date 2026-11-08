@@ -16,6 +16,7 @@ import Control.Lens
 import Data.Maybe
 import PF.Data.Named
 import PF.Simulation.Level
+import qualified Symbolize as Sym
 
 
 
@@ -50,7 +51,7 @@ drawResources = do
       fillRect rdr (Just $ Rectangle basePoint (V2 minFillWidth height))
     rendererDrawColor rdr $= V4 0 0 0 255
     drawRect rdr (Just $ Rectangle basePoint (V2 width height))
-    let label = res.prototype.name <> " " <> Text.pack (show (floor res.current) <> "/" <> show (floor res.prototype.max))
+    let label = Sym.unintern (res.prototype.name) <> " " <> Text.pack (show (floor res.current) <> "/" <> show (floor res.prototype.max))
     font <- asks (.opensans12)
     labelSurf <- Font.solid font (V4 60 127 240 255) label
     labelTex <- createTextureFromSurface rdr labelSurf
@@ -77,7 +78,7 @@ drawAbilities = do
     rendererDrawColor rdr $= V4 0 0 0 255
     drawRect rdr (Just rect)
     font <- asks (.opensans12)
-    labelSurf <- Font.solid font (V4 60 127 240 255) ability.name
+    labelSurf <- Font.solid font (V4 60 127 240 255) $ Sym.unintern ability.name
     labelTex <- createTextureFromSurface rdr labelSurf
     labelSize <- surfaceDimensions labelSurf
     copy rdr labelTex Nothing (Just $ Rectangle basePoint labelSize)
@@ -105,7 +106,7 @@ drawCasting = do
     fillRect rdr (Just $ Rectangle basePoint (V2 fillWidth height))
     rendererDrawColor rdr $= V4 0 0 0 255
     drawRect rdr (Just $ Rectangle basePoint (V2 width height))
-    let label = nameOf ability <> " " <> Text.pack (show (floor progress) <> "/" <> show (floor max_progress))
+    let label = Sym.unintern (nameOf ability) <> " " <> Text.pack (show (floor progress) <> "/" <> show (floor max_progress))
     font <- asks (.opensans12)
     labelSurf <- Font.solid font (V4 60 127 240 255) label
     labelTex <- createTextureFromSurface rdr labelSurf
@@ -136,7 +137,7 @@ drawBuffs = do
   rdr <- asks (.renderer)
   for_ (zip [0..] world.buffs) \(i, buff) -> do
     let duration_ticks = buff.remaining
-        label = nameOf buff <> "  " <> Text.pack (show $ round $ duration_ticks)
+        label = Sym.unintern (nameOf buff) <> "  " <> Text.pack (show $ round $ duration_ticks)
         color = V4 30 120 20 255
     font <- asks (.opensans12)
     labelSurf <- Font.solid font color label

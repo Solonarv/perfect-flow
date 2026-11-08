@@ -2,11 +2,12 @@
 {-# LANGUAGE BangPatterns #-}
 module PF.Simulation where
 
-import Data.Text (Text)
-import Data.Map.Strict (Map)
+import Symbolize (Symbol)
+import qualified Symbolize
+import Data.HashMap.Strict (HashMap)
 import Control.Monad.State
 import Control.Monad
-import qualified Data.Map.Strict as Map
+import qualified Data.HashMap.Strict as HashMap
 import Data.Ord (clamp)
 import Data.Foldable
 import Data.Maybe
@@ -48,14 +49,14 @@ data CurrentCast = CurrentCast
 
 data World = World
   { prototype :: Level
-  , resources :: Map Text LiveResource
+  , resources :: HashMap Symbol LiveResource
   , currently_casting :: Maybe CurrentCast
   , pending_effects :: [Effect]
   , buffs :: [LiveBuff]
   , tick :: Int
   , damage :: Int
   , rng :: StdGen
-  , procState :: Map Text Number
+  , procState :: HashMap Symbol Number
   }
   deriving (Eq, Show)
 
@@ -68,8 +69,8 @@ hydrateWorld rng proto = World
   , buffs = []
   , tick  = 0
   , damage = 0
-  , resources = Map.fromList [(r.name, hydrateResource r) | r <- proto.resources]
-  , procState = Map.empty
+  , resources = HashMap.fromList [(r.name, hydrateResource r) | r <- proto.resources]
+  , procState = HashMap.empty
   }
 
 hydrateResource :: Resource -> LiveResource
@@ -113,7 +114,7 @@ stepCasting world
     -- cast done?
     when (casting.progress >= casting.ability.cast_time  && not casting.channeling) do
       modify $ addEffects casting.ability.name casting.ability.on_cast_finish
-      -- traceM $ "finished casting "<> Text.unpack casting.ability.name <> ", adding effects " <> show casting.ability.on_cast_finish
+      -- traceM $ "finished casting "<> Symbol.unpack casting.ability.name <> ", adding effects " <> show casting.ability.on_cast_finish
       if isChannelStyle casting.ability.cast_style
         then modify \w->w{currently_casting = Just casting{channeling = True, nextChannelTick = casting.ability.channel_tick}}
         else modify stopCasting
@@ -135,10 +136,10 @@ stepCasting world
 
   | otherwise = world
 
-addEffects :: Text -> [Effect] -> World -> World
+addEffects :: Symbol -> [Effect] -> World -> World
 addEffects source effects world = world{pending_effects = fmap (augmentEffect source world.buffs) effects <> world.pending_effects}
 
-augmentEffect :: Text -> [LiveBuff] -> Effect -> Effect
+augmentEffect :: Symbol -> [LiveBuff] -> Effect -> Effect
 augmentEffect source buffs = \case
   Effect_Damage amount -> Effect_Damage (calculate source Mod_Damage buffs amount)
   Effect_GetResource which amount -> Effect_GetResource which (calculate source (Mod_Gained which) buffs amount)
@@ -154,9 +155,9 @@ stepPendingEffects world
 applyEffect :: Effect -> World -> World
 applyEffect = \cases
   (Effect_Damage amount) w -> w{damage = w.damage + floor (amount.value)}
-  (Effect_GetResource which amount) w -> w{resources = Map.adjust (getResource amount) which w.resources}
+  (Effect_GetResource which amount) w -> w{resources = HashMap.adjust (getResource amount) which w.resources}
   (Effect_ApplyBuff name) w 
-    | Just proto <- Map.lookup name w.prototype.buffs
+    | Just proto <- HashMap.lookup name w.prototype.buffs
     -> applyBuff proto w
   (Effect_RemoveBuff_Newest which) w
     | (matched, others) <- partition (\b -> b.prototype.name == which) w.buffs
@@ -180,7 +181,7 @@ getResource amount res = res{current = clamp (res.prototype.min, res.prototype.m
 data MayInterrupt = Interrupt_Do | Interrupt_Don't
   deriving (Eq, Ord, Show)
 
-cast :: Text -> MayInterrupt -> World -> World
+cast :: Symbol -> MayInterrupt -> World -> World
 cast what int w
   | [ability] <- filter (\a -> nameOf a == what) w.prototype.abilities
   , Just paid <- canCast ability int w
@@ -192,7 +193,7 @@ cast what int w
   = stepPendingEffects w
   | otherwise = w
 
-canCast :: Ability -> MayInterrupt -> World -> Maybe (Map Text LiveResource)
+canCast :: Ability -> MayInterrupt -> World -> Maybe (HashMap Symbol LiveResource)
 canCast ability int w
   | isNothing w.currently_casting
     || ability.cast_style == Free
@@ -204,17 +205,17 @@ canCast ability int w
 stopCasting :: World -> World
 stopCasting w = w{currently_casting = Nothing}
 
-payCosts :: Text -> [Cost] -> World -> Maybe (Map Text LiveResource)
+payCosts :: Symbol -> [Cost] -> World -> Maybe (HashMap Symbol LiveResource)
 payCosts name costs w = foldM expend w.resources (fmap (calculateModifiedCost name w.buffs) costs)
 
-expend :: Map Text LiveResource -> Cost -> Maybe (Map Text LiveResource)
+expend :: HashMap Symbol LiveResource -> Cost -> Maybe (HashMap Symbol LiveResource)
 expend resources cost = do
-  res <- Map.lookup cost.target resources
+  res <- HashMap.lookup cost.target resources
   let newAmount = res.current - cost.amount
   guard (newAmount >= res.prototype.min && newAmount <= res.prototype.max)
   pure if cost.phantom
     then resources
-    else Map.insert cost.target res{current = newAmount} resources
+    else HashMap.insert cost.target res{current = newAmount} resources
 
 applyBuff :: Buff -> World -> World
 applyBuff buff w = let
@@ -249,7 +250,7 @@ executeModifiers mods base = let
   (addBase, increased, more, increased_invert, addFinal) = foldMap mod2vec mods
   in (base + getSum addBase) * (1 + getSum increased) / (1 - getSum increased_invert) * getProduct more + getSum addFinal
 
-collectModifiersFor :: Text -> ModifierWhat -> [LiveBuff] -> [Modifier]
+collectModifiersFor :: Symbol -> ModifierWhat -> [LiveBuff] -> [Modifier]
 collectModifiersFor name what buffs = 
   [ mod
   | buff <- buffs
@@ -258,21 +259,21 @@ collectModifiersFor name what buffs =
   , Set.null mod.targets || name `Set.member` mod.targets
   ]
 
-calculate :: Text -> ModifierWhat -> [LiveBuff] -> Number -> Number
+calculate :: Symbol -> ModifierWhat -> [LiveBuff] -> Number -> Number
 calculate name what buffs base = executeModifiers (collectModifiersFor name what buffs) base
 
-calculateInt :: Text -> ModifierWhat -> [LiveBuff] -> Int -> Int
+calculateInt :: Symbol -> ModifierWhat -> [LiveBuff] -> Int -> Int
 calculateInt t w b = floor . calculate t w b . int2Num
 
-calculateModifiedCost :: Text -> [LiveBuff] -> Cost -> Cost
+calculateModifiedCost :: Symbol -> [LiveBuff] -> Cost -> Cost
 calculateModifiedCost name buffs cost = cost{amount = calculate name (Mod_Cost cost.target) buffs cost.amount}
 
-rollProc :: Text -> Number -> World -> (Bool, World)
+rollProc :: Symbol -> Number -> World -> (Bool, World)
 rollProc name p w = let
-  state = fromMaybe 0 $ Map.lookup name w.procState
+  state = fromMaybe 0 $ HashMap.lookup name w.procState
   (roll, rng') = rollRangePrec 2 (p/100) w.rng
   total = state + p
   happens = roll <= total
   total' = if happens then total - roll else total
-  procState = Map.insert name total' w.procState
+  procState = HashMap.insert name total' w.procState
   in (happens, w{rng = rng', procState = procState})

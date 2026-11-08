@@ -9,10 +9,12 @@ import qualified Data.Set as Set
 import Data.Foldable
 import Data.List
 import Data.Maybe
+import qualified Data.HashMap.Strict as HashMap
+import Symbolize (Symbol)
 
 data ConsistencyError
-  = UndefinedBuff Text
-  | UnusedBuff Text
+  = UndefinedBuff Symbol
+  | UnusedBuff Symbol
   deriving (Eq, Ord, Show)
 
 sguard :: Bool -> a -> Set a
@@ -22,14 +24,14 @@ checkConsistency :: Level -> Set ConsistencyError
 checkConsistency lvl = let
   mentionedBuffs = buffNamesMentioned lvl
   appliedBuffs = buffNamesApplied lvl
-  buffExists b = sguard (b `Map.member` lvl.buffs) (UndefinedBuff b)
+  buffExists b = sguard (b `HashMap.member` lvl.buffs) (UndefinedBuff b)
   buffIsApplied b = sguard (b `Set.member` appliedBuffs) (UnusedBuff b)
   in
     foldMap buffExists mentionedBuffs
     <> foldMap buffIsApplied mentionedBuffs
   -- TODO resource names
 
-buffNamesMentioned :: Level -> Set Text
+buffNamesMentioned :: Level -> Set Symbol
 buffNamesMentioned lvl = Set.fromList $
   mapMaybe buffName (collectEffects lvl)
   where
@@ -40,7 +42,7 @@ buffNamesMentioned lvl = Set.fromList $
       Effect_RemoveBuff_Oldest what -> Just what
       _ -> Nothing
 
-buffNamesApplied :: Level -> Set Text
+buffNamesApplied :: Level -> Set Symbol
 buffNamesApplied lvl = Set.fromList $
   mapMaybe buffName (collectEffects lvl)
   where
