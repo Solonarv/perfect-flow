@@ -80,7 +80,9 @@ drawAbilities = do
     rendererDrawColor rdr $= V4 0 0 0 255
     drawRect rdr (Just rect)
     font <- asks (.opensans12)
-    labelSurf <- Font.solid font (V4 60 127 240 255) $ Sym.unintern ability.name
+    locale <- liftIO . readIORef =<< asks (.locale)
+    let name = locale.get ["ability", ability.name]
+    labelSurf <- Font.solid font (V4 60 127 240 255) name
     labelTex <- createTextureFromSurface rdr labelSurf
     labelSize <- surfaceDimensions labelSurf
     copy rdr labelTex Nothing (Just $ Rectangle basePoint labelSize)
@@ -108,7 +110,9 @@ drawCasting = do
     fillRect rdr (Just $ Rectangle basePoint (V2 fillWidth height))
     rendererDrawColor rdr $= V4 0 0 0 255
     drawRect rdr (Just $ Rectangle basePoint (V2 width height))
-    let label = Sym.unintern (nameOf ability) <> " " <> Text.pack (show (floor progress) <> "/" <> show (floor max_progress))
+    locale <- liftIO . readIORef =<< asks (.locale)
+    let name = locale.get ["ability", nameOf ability]
+        label = name <> " " <> Text.pack (show (floor progress) <> "/" <> show (floor max_progress))
     font <- asks (.opensans12)
     labelSurf <- Font.solid font (V4 60 127 240 255) label
     labelTex <- createTextureFromSurface rdr labelSurf
@@ -138,8 +142,10 @@ drawBuffs = do
   world <- liftIO . readIORef =<< asks (.world)
   rdr <- asks (.renderer)
   for_ (zip [0..] world.buffs) \(i, buff) -> do
+    locale <- liftIO . readIORef =<< asks (.locale)
     let duration_ticks = buff.remaining
-        label = Sym.unintern (nameOf buff) <> "  " <> Text.pack (show $ round $ duration_ticks)
+        name = locale.get ["ability", nameOf buff]
+        label = name <> "  " <> Text.pack (show $ round $ duration_ticks)
         color = V4 30 120 20 255
     font <- asks (.opensans12)
     labelSurf <- Font.solid font color label
