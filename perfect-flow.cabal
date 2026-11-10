@@ -42,7 +42,7 @@ library
   import: language
   exposed-modules:     PF.Main, PF.AppM, PF.Simulation, PF.Simulation.Notation, PF.Levels.ArcaneWizard, PF.Levels.Corruptor
                      , PF.Render, PF.Data.Number, PF.Random, PF.Simulation.Level, PF.Data.Named
-                     , PF.Simulation.Level.Consistency, PF.Data.HierarchicalTable, PF.Locale
+                     , PF.Simulation.Level.Consistency, PF.Data.HierarchicalTable, PF.Locale, PF.Data.Symbol
   hs-source-dirs:      src
   build-depends:       StateVar ^>=1.2.2
                      , bytestring ^>=0.12.2.0

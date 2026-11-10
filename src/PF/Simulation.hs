@@ -2,8 +2,8 @@
 {-# LANGUAGE BangPatterns #-}
 module PF.Simulation where
 
-import Symbolize (Symbol)
-import qualified Symbolize
+import PF.Data.Symbol (Symbol)
+import qualified PF.Data.Symbol as Sym
 import Data.HashMap.Strict (HashMap)
 import Control.Monad.State
 import Control.Monad

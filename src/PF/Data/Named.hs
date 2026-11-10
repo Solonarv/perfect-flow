@@ -2,7 +2,7 @@
 module PF.Data.Named where
 
 import GHC.Records (HasField)
-import Symbolize (Symbol)
+import PF.Data.Symbol (Symbol)
 
 -- | Many game entities have a name.
 -- Most of the time the name is a record field @name :: Text@, this

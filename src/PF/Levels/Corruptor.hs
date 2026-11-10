@@ -35,6 +35,7 @@ level = sharedCD "gcd" Level
       , cast_style = Normal
       , cast_time = 120
       , channel_time = 0, channel_tick = 0
+
       , on_cast_start = [], on_channel_tick = []
       , cost_tick = []
       , cost = [_GCD, Cost "mana" 132 False]

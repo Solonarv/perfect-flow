@@ -3,8 +3,7 @@
 module PF.Simulation.Level where
 
 import PF.Data.Number
-import Symbolize (Symbol)
-import qualified Symbolize
+import PF.Data.Symbol (Symbol)
 import Data.Set (Set)
 import Data.Map (Map)
 import GHC.Records (HasField)

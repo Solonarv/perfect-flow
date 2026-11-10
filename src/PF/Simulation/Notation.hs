@@ -1,20 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
 module PF.Simulation.Notation (
   byName, chargeResource, cdCost, sharedCD, procWeighted,
-  module Symbolize, module PF.Data.Number
+  module Sym, module PF.Data.Number
 ) where
 
 import GHC.Records (HasField)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
-import Symbolize (Symbol)
+import PF.Data.Symbol (Symbol)
 import Data.Foldable (toList)
 import PF.Simulation.Level
 import PF.Data.Number
 import Data.Hashable
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
-import qualified Symbolize as Sym
+import qualified PF.Data.Symbol as Sym
 
 byName :: (HasField "name" r n, Hashable n) => [r] -> HashMap n r
 byName rs = HashMap.fromList [(r.name, r) | r <- rs]

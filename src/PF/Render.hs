@@ -16,7 +16,7 @@ import Control.Lens
 import Data.Maybe
 import PF.Data.Named
 import PF.Simulation.Level
-import qualified Symbolize as Sym
+import qualified PF.Data.Symbol as Sym
 
 
 

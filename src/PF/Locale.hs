@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 module PF.Locale where
 import GHC.Records
-import Symbolize (Symbol)
+import PF.Data.Symbol (Symbol)
 import Data.Text (Text)
 import PF.Data.HierarchicalTable
-import qualified Symbolize as Sym
+import qualified PF.Data.Symbol as Sym
 import Data.Maybe
 import qualified Data.Text as Text
 import qualified Data.ByteString.Lazy as BSL

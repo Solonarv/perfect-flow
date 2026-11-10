@@ -10,7 +10,7 @@ import Data.Foldable
 import Data.List
 import Data.Maybe
 import qualified Data.HashMap.Strict as HashMap
-import Symbolize (Symbol)
+import PF.Data.Symbol (Symbol)
 
 data ConsistencyError
   = UndefinedBuff Symbol
