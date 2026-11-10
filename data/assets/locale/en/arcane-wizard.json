@@ -26,9 +26,7 @@
         }
     },
     "resource": {
-        "mana": {
-            "_here": "Mana"
-        }
+        "mana":  "Mana"
     },
     "buff": {
         "arcane-blast": {

@@ -1,13 +1,12 @@
 {-# LANGUAGE OverloadedStrings, OverloadedLists #-}
 module PF.Levels.ArcaneWizard where
 
-import PF.Simulation
 import PF.Simulation.Notation
 import PF.Data.Number
 import PF.Simulation.Level
 
-initWorld :: Level
-initWorld = sharedCD "gcd" $ Level
+level :: Level
+level = sharedCD "gcd" $ Level
   { resources =
     [ Resource
       { name = "mana"

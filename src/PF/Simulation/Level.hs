@@ -53,6 +53,7 @@ data Effect
   | Effect_RemoveBuff_Oldest Symbol
   | Effect_RemoveBuff_Newest Symbol
   | Effect_RemoveBuff_All Symbol
+  | Effect_TrySpend Symbol [Cost] Effect (Maybe Effect)
   | Effect_Randomly Symbol Number Effect (Maybe Effect)
   | Effect_Sequence Symbol [Effect]
   deriving (Eq, Ord, Show)
@@ -60,7 +61,7 @@ data Effect
 data ModifierClass = Mod_AddBase | Mod_Increased | Mod_More | Mod_Increased_Invert | Mod_AddFinal
   deriving (Eq, Ord, Show)
 
-data ModifierWhat = Mod_Damage | Mod_Cost Symbol | Mod_CastSpeed | Mod_Max | Mod_Regen | Mod_Gained Symbol
+data ModifierWhat = Mod_Damage | Mod_Cost Symbol | Mod_CastSpeed | Mod_Max | Mod_Regen | Mod_Gained Symbol | Mod_Chance
   deriving (Eq, Ord, Show)
 
 data Modifier = Modifier

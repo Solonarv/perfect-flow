@@ -45,6 +45,7 @@ import Data.Word
 import PF.Simulation
 
 import PF.Levels.ArcaneWizard qualified
+import PF.Levels.Corruptor qualified
 import PF.Render
 import Data.IORef
 import Data.Foldable
@@ -64,15 +65,15 @@ pfMain = do
         { windowGraphicsContext = OpenGLContext ogl
         , windowResizable = True
         , windowHighDPI = False
-        , windowInitialSize = V2 640 480
+        , windowInitialSize = V2 1600 900
         }
   window <- createWindow "Perfect Flow" wincfg
   renderer <- createRenderer window 0 defaultRenderer
   opensans12 <- Font.load "data/assets/fonts/OpenSans-Regular.ttf" 12
   rng <- initStdGen
   liftIO $ putStrLn $ "RNG Seed: " <> show rng
-  let world = hydrateWorld rng PF.Levels.ArcaneWizard.initWorld
-  loc <- Locale.loadLocale "data/assets/locale/en/arcane-wizard.json"
+  let world = hydrateWorld rng PF.Levels.Corruptor.level
+  loc <- Locale.loadLocale "data/assets/locale/en/corruptor.json"
   runAppWith window renderer world loc opensans12 app
   putStrLn "Shutting down!"
   destroyRenderer renderer

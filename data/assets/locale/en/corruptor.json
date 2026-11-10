@@ -1,0 +1,14 @@
+{
+    "resource": {
+        "mana": "Mana"
+    },
+    "ability": {
+        "agony-jolt": "Agony Jolt",
+        "void-infection": "Void Infection",
+        "soul-barrage": "Soul Barrage"
+    },
+    "buff": {
+        "void-infection": "Void Infection",
+        "void-infection.power": "Void Power"
+    }
+}

@@ -33,17 +33,17 @@ render = do
 
 drawResources :: AppM ()
 drawResources = do
-  world <- liftIO . readIORef =<< asks (.world)
+  world <- askM (.world.value)
   for_ (zip [0..] (toList world.resources)) \(i, res) -> do
     rdr <- asks (.renderer)
     let
       width, height, fillWidth :: CInt
-      width = 200
+      width = 300
       height = 40
       fillLevel = res.current / res.prototype.max
       fillWidth = round (fromIntegral width * fillLevel)
       minFillWidth = round (fromIntegral width * res.prototype.min / res.prototype.max)
-      basePoint = P (V2 420 (10 + 50*i))
+      basePoint = P (V2 1250 (10 + 50*i))
     rendererDrawColor rdr $= V4 0 255 0 255
     fillRect rdr (Just $ Rectangle basePoint (V2 fillWidth height))
     when (res.prototype.min > 0) do
@@ -51,7 +51,7 @@ drawResources = do
       fillRect rdr (Just $ Rectangle basePoint (V2 minFillWidth height))
     rendererDrawColor rdr $= V4 0 0 0 255
     drawRect rdr (Just $ Rectangle basePoint (V2 width height))
-    loc <- liftIO . readIORef =<< asks (.locale)
+    loc <- askM (.locale.value)
     let resName = loc.get ["resource", res.prototype.name]
     let label = resName <> " " <> Text.pack (show (floor res.current) <> "/" <> show (floor res.prototype.max))
     font <- asks (.opensans12)
@@ -62,7 +62,7 @@ drawResources = do
 
 drawAbilities :: AppM ()
 drawAbilities = do
-  world <- liftIO . readIORef =<< asks (.world)
+  world <- askM (.world.value)
   for_ (zip [0..] (toList world.prototype.abilities)) \(i, ability) -> do
     rdr <- asks (.renderer)
     let
@@ -80,7 +80,7 @@ drawAbilities = do
     rendererDrawColor rdr $= V4 0 0 0 255
     drawRect rdr (Just rect)
     font <- asks (.opensans12)
-    locale <- liftIO . readIORef =<< asks (.locale)
+    locale <- askM (.locale.value)
     let name = locale.get ["ability", ability.name]
     labelSurf <- Font.solid font (V4 60 127 240 255) name
     labelTex <- createTextureFromSurface rdr labelSurf
@@ -90,14 +90,14 @@ drawAbilities = do
 
 drawCasting :: AppM ()
 drawCasting = do
-  world <- liftIO . readIORef =<< asks (.world)
+  world <- askM (.world.value)
   for_ world.currently_casting \casting -> do
     rdr <- asks (.renderer)
     let
       ability = casting.ability
-      width = 240
+      width = 320
       height = 60
-      basePoint = P (V2 200 380)
+      basePoint = P (V2 640 700)
       color = V4 0 255 0 255
       progress
         | casting.channeling = ability.channel_time - casting.progress
@@ -110,7 +110,7 @@ drawCasting = do
     fillRect rdr (Just $ Rectangle basePoint (V2 fillWidth height))
     rendererDrawColor rdr $= V4 0 0 0 255
     drawRect rdr (Just $ Rectangle basePoint (V2 width height))
-    locale <- liftIO . readIORef =<< asks (.locale)
+    locale <- askM (.locale.value)
     let name = locale.get ["ability", nameOf ability]
         label = name <> " " <> Text.pack (show (floor progress) <> "/" <> show (floor max_progress))
     font <- asks (.opensans12)
@@ -122,7 +122,7 @@ drawCasting = do
 
 drawDamage :: AppM ()
 drawDamage = do
-  world <- liftIO . readIORef =<< asks (.world)
+  world <- askM (.world.value)
   rdr <- asks (.renderer)
   let label = "DAMAGE: " <> Text.pack (show world.damage)
             <> "  DPS: " <> Text.pack (show $ round $ fromIntegral world.damage / fromIntegral world.tick * 60)
@@ -139,12 +139,12 @@ drawDamage = do
 
 drawBuffs :: AppM ()
 drawBuffs = do
-  world <- liftIO . readIORef =<< asks (.world)
+  world <- askM (.world.value)
   rdr <- asks (.renderer)
   for_ (zip [0..] world.buffs) \(i, buff) -> do
-    locale <- liftIO . readIORef =<< asks (.locale)
+    locale <- askM (.locale.value)
     let duration_ticks = buff.remaining
-        name = locale.get ["ability", nameOf buff]
+        name = locale.get ["buff", nameOf buff]
         label = name <> "  " <> Text.pack (show $ round $ duration_ticks)
         color = V4 30 120 20 255
     font <- asks (.opensans12)

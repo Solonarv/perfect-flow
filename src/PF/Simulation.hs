@@ -23,6 +23,7 @@ import PF.Data.Named
 import PF.Random
 
 import PF.Simulation.Level
+import Control.Applicative
 
 data LiveResource = LiveResource
   { prototype :: Resource
@@ -34,6 +35,7 @@ data LiveResource = LiveResource
 data LiveBuff = LiveBuff
   { prototype :: Buff
   , remaining :: Number
+  , nextTick :: Number
   }
   deriving (Eq, Ord, Show)
   deriving (Named) via (Prototyped LiveBuff)
@@ -102,10 +104,14 @@ stepTime w = w
 stepBuffs :: World -> World
 stepBuffs w = let
   (removed, remaining) = partition (\b -> b.remaining < 0) w.buffs
-  ticking = filter shouldTick remaining
-  shouldTick buff = buff.prototype.tick_time > 0 && abs (snd $ properFraction $ buff.remaining / buff.prototype.tick_time) < 1
+  ticking = [b | b <- remaining, shouldTick b]
+  remaining' = map advanceTick remaining
+  shouldTick buff = buff.prototype.tick_time > 0 && buff.nextTick <= int2Num w.tick
+  advanceTick buff = if shouldTick buff
+    then buff{nextTick = buff.nextTick + buff.prototype.tick_time}
+    else buff
   in flip (foldr (\b w' -> addEffects (nameOf b) b.prototype.on_expire w')) removed
-  $ foldr ((\b w' -> addEffects (nameOf b) b.prototype.on_tick w')) w{buffs = remaining} ticking
+  $ foldr ((\b w' -> addEffects (nameOf b) b.prototype.on_tick w')) w{buffs = remaining'} ticking
 
 stepCasting :: World -> World
 stepCasting world
@@ -143,6 +149,7 @@ augmentEffect :: Symbol -> [LiveBuff] -> Effect -> Effect
 augmentEffect source buffs = \case
   Effect_Damage amount -> Effect_Damage (calculate source Mod_Damage buffs amount)
   Effect_GetResource which amount -> Effect_GetResource which (calculate source (Mod_Gained which) buffs amount)
+  Effect_Randomly src p what els -> Effect_Randomly src (calculate src Mod_Chance buffs p) what els
   any -> any
 
 
@@ -169,6 +176,11 @@ applyEffect = \cases
   (Effect_RemoveBuff_All which) w
     | (removed, others) <- partition (\b -> nameOf b == which) w.buffs
     -> addEffects which (concatMap (.prototype.on_remove) removed) w{buffs = others}
+  (Effect_TrySpend source cost what els) w
+    | paid <- payCosts source cost w
+    , let effect = maybeToList ((what <$ paid) <|> els)
+    , res' <- fromMaybe w.resources paid
+    -> addEffects source effect w{resources = res'}
   (Effect_Randomly source p what els) w
     | (cond, w') <- rollProc source p w
     , let effect = if cond then [what] else maybeToList els
@@ -222,20 +234,21 @@ applyBuff buff w = let
   (existing, others) = partition (\b -> b.prototype.name == buff.name) w.buffs
   (these, triggers) = if
     | length existing < buff.maxStacks
-    -> (hydrateBuff buff : existing, buff.on_apply)
+    -> (hydrateBuff w.tick buff : existing, buff.on_apply)
     | Buff_Discard <- buff.stackingMode -> (existing, [])
     | Buff_Override <- buff.stackingMode
     , Just (rest, removed) <- unsnoc existing
-    -> (hydrateBuff buff:rest, buff.on_apply ++ removed.prototype.on_remove)
+    -> (hydrateBuff w.tick buff:rest, buff.on_apply ++ removed.prototype.on_remove)
     | Buff_Refresh <- buff.stackingMode
     , refresh <- \b -> b{remaining = max b.remaining buff.duration}
     -> (refresh <$> existing, buff.on_apply)
   in addEffects buff.name triggers w{buffs = these ++ others}
 
-hydrateBuff :: Buff -> LiveBuff
-hydrateBuff buff = LiveBuff
+hydrateBuff :: Int -> Buff -> LiveBuff
+hydrateBuff now buff = LiveBuff
   { prototype = buff
   , remaining = buff.duration
+  , nextTick = buff.tick_time + int2Num now
   }
 
 -- | Apply all modifiers to the given value, respecting modifier class.
