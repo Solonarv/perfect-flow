@@ -65,7 +65,7 @@ pfMain = do
         { windowGraphicsContext = OpenGLContext ogl
         , windowResizable = True
         , windowHighDPI = False
-        , windowInitialSize = V2 1600 900
+        , windowInitialSize = V2 800 600
         }
   window <- createWindow "Perfect Flow" wincfg
   renderer <- createRenderer window 0 defaultRenderer

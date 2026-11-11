@@ -38,12 +38,12 @@ drawResources = do
     rdr <- asks (.renderer)
     let
       width, height, fillWidth :: CInt
-      width = 300
+      width = 180
       height = 40
       fillLevel = res.current / res.prototype.max
       fillWidth = round (fromIntegral width * fillLevel)
       minFillWidth = round (fromIntegral width * res.prototype.min / res.prototype.max)
-      basePoint = P (V2 1250 (10 + 50*i))
+      basePoint = P (V2 600 (10 + 50*i))
     rendererDrawColor rdr $= V4 0 255 0 255
     fillRect rdr (Just $ Rectangle basePoint (V2 fillWidth height))
     when (res.prototype.min > 0) do
@@ -95,9 +95,9 @@ drawCasting = do
     rdr <- asks (.renderer)
     let
       ability = casting.ability
-      width = 320
+      width = 240
       height = 60
-      basePoint = P (V2 640 700)
+      basePoint = P (V2 180 500)
       color = V4 0 255 0 255
       progress
         | casting.channeling = ability.channel_time - casting.progress
