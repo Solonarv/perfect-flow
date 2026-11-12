@@ -33,6 +33,7 @@ import Control.Monad
 import Data.Function
 import Data.Functor
 import Foreign.C.Types
+import System.Environment (getArgs)
 
 import Graphics.GL.Core40
 import SDL
@@ -72,8 +73,12 @@ pfMain = do
   opensans12 <- Font.load "data/assets/fonts/OpenSans-Regular.ttf" 12
   rng <- initStdGen
   liftIO $ putStrLn $ "RNG Seed: " <> show rng
-  let world = hydrateWorld rng PF.Levels.Corruptor.level
-  loc <- Locale.loadLocale "data/assets/locale/en/corruptor.json"
+  (level, locPath) <-  flip fmap getArgs \case
+    xs | "corruptor" `elem` xs
+       -> (PF.Levels.Corruptor.level, "corruptor.json")
+    _ -> (PF.Levels.ArcaneWizard.level, "arcane-wizard.json")
+  let world = hydrateWorld rng level
+  loc <- Locale.loadLocale $ "data/assets/locale/en/" <> locPath
   runAppWith window renderer world loc opensans12 app
   putStrLn "Shutting down!"
   destroyRenderer renderer
